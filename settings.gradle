@@ -8,5 +8,6 @@ dependencyResolutionManagement {
 }
 rootProject.name = "AutoPreload"
 include ':app'
+include ':library'
 include ':annotation'
 include ':processor'
