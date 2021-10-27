@@ -11,11 +11,13 @@ class AppInitWorker(appContext: Context, workerParams: WorkerParameters)
     override fun doWork(): Result {
         return try {
             println("===========doWork============")
+            LoadCenter.loadClass()
             val outputData = workDataOf(Pair("",""))
             Result.success(outputData)
         } catch (e: Exception) {
             Result.failure()
         }
     }
+
 
 }

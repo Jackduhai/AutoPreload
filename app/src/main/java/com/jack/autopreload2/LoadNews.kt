@@ -1,10 +1,10 @@
-package com.jack.autopreload
+package com.jack.autopreload2
 
 import com.jack.annotation.AutoPreload
 import com.jack.annotation.LoadMethod
 
 @AutoPreload
-class LoadNews {
+object LoadNews {
 
     @LoadMethod
     fun loadMyMessagePre(){
