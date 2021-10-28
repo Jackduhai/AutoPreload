@@ -32,9 +32,9 @@ afterEvaluate {
     publishing {
         publications {
             release(MavenPublication) {
-                groupId = 'com.jack.autopreload'
+                groupId = 'com.github.Jackduhai.AutoPreload'
                 artifactId = 'processor'
-                version = '1.0.0.7'
+                version = '1.0.0.8'
             }
         }
     }
