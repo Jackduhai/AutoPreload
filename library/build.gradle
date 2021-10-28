@@ -49,7 +49,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.jack.autopreload'
                 artifactId = 'autopreload'
-                version = '1.0.0.3'
+                version = '1.0.0.7'
             }
         }
     }
