@@ -6,14 +6,12 @@ import com.jack.annotation.Const.Companion.AUTO_CODE_PACKAGE
 import com.jack.annotation.Const.Companion.LOAD_CLASS
 import com.jack.annotation.InvokeBase
 import com.jack.annotation.LoadMethod
+import com.jack.processor.util.PrivateMethodException
 import com.squareup.kotlinpoet.*
 import java.lang.Exception
 import javax.annotation.processing.*
 import javax.lang.model.SourceVersion
-import javax.lang.model.element.Element
-import javax.lang.model.element.ElementKind
-import javax.lang.model.element.ExecutableElement
-import javax.lang.model.element.TypeElement
+import javax.lang.model.element.*
 import javax.tools.Diagnostic
 import kotlin.io.path.Path
 import kotlin.properties.Delegates
@@ -30,17 +28,14 @@ class PreloadProcessor : AbstractProcessor(){
         super.init(processingEnv)
         filer = processingEnv.filer
         messager = processingEnv.messager
-        println("========process=====init=======")
 
     }
 
     override fun getSupportedAnnotationTypes(): MutableSet<String> {
-        println("========process=====getSupportedAnnotationTypes=======")
         return hashSetOf(AutoPreload::class.java.canonicalName)
     }
 
     override fun process(annotations: MutableSet<out TypeElement>?,roundEnv: RoundEnvironment?): Boolean {
-        println("=======process start=========")
         val elements = roundEnv?.getElementsAnnotatedWith(AutoPreload::class.java)
         if(elements.isNullOrEmpty()){
             return false
@@ -58,36 +53,44 @@ class PreloadProcessor : AbstractProcessor(){
         val f = FunSpec.builder("load").addModifiers(KModifier.OVERRIDE)
         val codeBlock = CodeBlock.builder()
         val elements = roundEnv!!.getElementsAnnotatedWith(AutoPreload::class.java)!!
-        val hashSet = ArrayList<String>();
         try {
             elements.forEach {annotatedElement->
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
-                println("11=====${needsElements}=====${annotatedElement.simpleName}  " +
-                        "${annotatedElement.enclosedElements}====${ElementKind.INSTANCE_INIT}")
+//                println("11=====${needsElements}=====${annotatedElement.simpleName}  " +
+//                        "${annotatedElement.enclosedElements}")
                 var containssington = false
+                var invokeMethod : Element? = null
                 run outside@{
                     annotatedElement.enclosedElements.forEach {
                         containssington = it.simpleName.toString() == "INSTANCE"
-                        println("=====annotatedElement==========${it.simpleName.toString()}  ${containssington}")
                         if(containssington){
                             return@outside
                         }
                     }
                 }
+                needsElements.forEach {
+                    if(!it.modifiers.contains(Modifier.PRIVATE)){
+                        invokeMethod = it
+                    } else {
+                        throw PrivateMethodException(it, LoadMethod::class.java)
+                    }
+                }
 
+                println("00==containssington:${containssington}==========needsElements:${needsElements}=======")
                 val cls = ClassName(annotatedElement.enclosingElement.toString(),annotatedElement.simpleName.toString())
 //                codeBlock.add("%T().${needsElements[0]}",cls)
-                if(containssington){
-                    f.addStatement("%T.${needsElements[0]}",cls)
-                } else {
-                    f.addStatement("%T().${needsElements[0]}",cls)
+                invokeMethod?.let {
+                    if(containssington){
+                        f.addStatement("%T.${needsElements[0]}",cls)
+                    } else {
+                        f.addStatement("%T().${needsElements[0]}",cls)
+                    }
                 }
             }
         }catch (e : Exception){
             e.printStackTrace()
         }
         typeSpec.addFunction(f.build())
-        println("=======function build==========${codeBlock.build()}")
         return typeSpec
 
     }
