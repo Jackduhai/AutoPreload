@@ -11,6 +11,7 @@ import java.lang.Exception
 import javax.annotation.processing.*
 import javax.lang.model.SourceVersion
 import javax.lang.model.element.Element
+import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.TypeElement
 import javax.tools.Diagnostic
@@ -61,17 +62,31 @@ class PreloadProcessor : AbstractProcessor(){
         try {
             elements.forEach {annotatedElement->
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
-                println("11=====${needsElements}=====${annotatedElement.simpleName}  ${annotatedElement.enclosedElements}====${annotatedElement.enclosingElement}")
+                println("11=====${needsElements}=====${annotatedElement.simpleName}  " +
+                        "${annotatedElement.enclosedElements}====${ElementKind.INSTANCE_INIT}")
+                var containssington = false
+                run outside@{
+                    annotatedElement.enclosedElements.forEach {
+                        containssington = it.simpleName.toString() == "INSTANCE"
+                        println("=====annotatedElement==========${it.simpleName.toString()}  ${containssington}")
+                        if(containssington){
+                            return@outside
+                        }
+                    }
+                }
 
                 val cls = ClassName(annotatedElement.enclosingElement.toString(),annotatedElement.simpleName.toString())
-                codeBlock.add("%T()",cls)
+//                codeBlock.add("%T().${needsElements[0]}",cls)
+                if(containssington){
+                    f.addStatement("%T.${needsElements[0]}",cls)
+                } else {
+                    f.addStatement("%T().${needsElements[0]}",cls)
+                }
             }
         }catch (e : Exception){
             e.printStackTrace()
         }
-//        println("codeBlock=============${codeBlock.build()}============")
-//        codeBlock.add(codeBlock.build())
-        typeSpec.addFunction(f.addCode(codeBlock.build()).build())
+        typeSpec.addFunction(f.build())
         println("=======function build==========${codeBlock.build()}")
         return typeSpec
 
