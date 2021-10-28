@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library'
     id 'kotlin-android'
+    id 'maven-publish'
 }
 
 android {
@@ -39,4 +40,17 @@ dependencies {
     implementation 'androidx.work:work-runtime-ktx:2.6.0'
 
     api project(':annotation')
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = 'com.jack.autopreload'
+                artifactId = 'autopreload'
+                version = '1.0.0.3'
+            }
+        }
+    }
 }

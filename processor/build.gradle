@@ -2,6 +2,7 @@ plugins {
     id 'java-library'
     id 'kotlin'
     id 'kotlin-kapt'
+    id 'maven-publish'
 }
 
 java {
@@ -26,3 +27,16 @@ dependencies {
     implementation "androidx.annotation:annotation:1.2.0"
     implementation "org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.3.0"
 }
+
+//afterEvaluate {
+//    publishing {
+//        publications {
+//            release(MavenPublication) {
+//                from components.release
+//                groupId = 'com.jack.autopreload'
+//                artifactId = 'autopreload'
+//                version = '1.0.0.3'
+//            }
+//        }
+//    }
+//}
