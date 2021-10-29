@@ -36,7 +36,7 @@ dependencies {
 
     implementation 'androidx.work:work-runtime-ktx:2.6.0'
 
-    api project(':annotation')
+//    api project(':annotation')
 }
 
 afterEvaluate {
@@ -46,7 +46,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.Jackduhai.AutoPreload'
                 artifactId = 'autopreload'
-                version = '1.0.1.5'
+                version = '1.0.1.6'
             }
         }
     }
