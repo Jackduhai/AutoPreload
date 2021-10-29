@@ -12,17 +12,8 @@ android {
         targetSdk 31
         versionCode 1
         versionName "1.0"
-
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles "consumer-rules.pro"
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -34,7 +25,7 @@ android {
 
 dependencies {
 
-    implementation 'androidx.work:work-runtime-ktx:2.6.0'
+//    implementation 'androidx.work:work-runtime-ktx:2.6.0'
 
     api project(':annotation')
 }
@@ -46,7 +37,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.Jackduhai.AutoPreload'
                 artifactId = 'autopreload'
-                version = '1.0.1.8'
+                version = '1.0.1.9'
             }
         }
     }
