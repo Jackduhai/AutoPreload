@@ -34,9 +34,6 @@ android {
 
 dependencies {
 
-    implementation 'androidx.core:core-ktx:1.6.0'
-    implementation 'androidx.appcompat:appcompat:1.3.1'
-    implementation 'com.google.android.material:material:1.4.0'
     implementation 'androidx.work:work-runtime-ktx:2.6.0'
 
     api project(':annotation')
@@ -49,7 +46,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.Jackduhai.AutoPreload'
                 artifactId = 'autopreload'
-                version = '1.0.1.3'
+                version = '1.0.1.4'
             }
         }
     }
