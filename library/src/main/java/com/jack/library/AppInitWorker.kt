@@ -1,8 +1,6 @@
 package com.jack.library
 
 import android.content.Context
-import android.os.Looper
-import android.util.Log
 import androidx.work.*
 
 class AppInitWorker(appContext: Context, workerParams: WorkerParameters)

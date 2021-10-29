@@ -44,5 +44,5 @@ dependencies {
 
     implementation project(':annotation')
     implementation project(':library')
-    kapt project(':processor')
+//    kapt project(':processor')
 }

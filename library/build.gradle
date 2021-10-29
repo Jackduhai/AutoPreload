@@ -46,7 +46,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.Jackduhai.AutoPreload'
                 artifactId = 'autopreload'
-                version = '1.0.1.4'
+                version = '1.0.1.5'
             }
         }
     }
