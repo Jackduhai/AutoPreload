@@ -26,7 +26,7 @@ android {
 dependencies {
     api project(':annotation')
     implementation 'androidx.work:work-runtime-ktx:2.6.0'
-    implementation 'androidx.collection:collection:1.1.0'
+    implementation 'androidx.collection:collection-ktx:1.1.0'
 }
 
 afterEvaluate {
