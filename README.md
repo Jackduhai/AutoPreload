@@ -11,7 +11,7 @@
       Preload.init(application)
 
 
-#普通对象预加载
+# 普通对象预加载
     @AutoPreload
     public class Load2 {
         @LoadMethod
@@ -21,7 +21,7 @@
     }
 
 
-#单例对象预加载
+# 单例对象预加载
     @AutoPreload
     object LoadNews {
         @LoadMethod
@@ -30,6 +30,6 @@
         }
     }
 
-#MemoryCache配套使用 可以进行预加载缓存
+# MemoryCache配套使用 可以进行预加载缓存
     MemoryCache.put("","")
     MemoryCache.get("")
