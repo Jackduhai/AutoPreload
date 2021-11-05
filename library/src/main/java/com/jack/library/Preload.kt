@@ -1,34 +1,26 @@
 package com.jack.library
 
 import android.app.Application
-import androidx.work.*
-import java.util.concurrent.TimeUnit
+import android.os.Build
+import androidx.annotation.RequiresApi
+import com.jack.library.utils.ProcessUtil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 object Preload {
 
-    private var constraints : Constraints? = null
+    private var mutiprocess : Boolean = true
 
     fun init(application: Application){
-        val constraints = Constraints.Builder()
-            .setRequiresBatteryNotLow(false)
-//            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresCharging(false)
-            .setRequiresStorageNotLow(true)
-            .setRequiresDeviceIdle(false)
-            .build()
-        val initWorkRequest = OneTimeWorkRequestBuilder<AppInitWorker>()
-            .setConstraints(this.constraints?:constraints)
-            .setBackoffCriteria(
-                BackoffPolicy.LINEAR,
-                OneTimeWorkRequest.MIN_BACKOFF_MILLIS,
-                TimeUnit.MILLISECONDS)
-            .build()
-        WorkManager.getInstance(application).enqueue(initWorkRequest)
+        GlobalScope.launch(Dispatchers.IO){
+            println("===Preload===init======${ProcessUtil.getCurrentProcessName(application)}")
+            AppInitWorker(application).doWork()
+        }
     }
 
-    //定制启动条件
-    public fun setConstraints(constraints : Constraints){
-        this.constraints = constraints
+    fun setMultiProcess(support:Boolean){
+        mutiprocess = support
     }
 
 }

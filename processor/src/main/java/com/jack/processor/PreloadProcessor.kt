@@ -23,6 +23,7 @@ class PreloadProcessor : AbstractProcessor(){
 
     private var messager : Messager? = null
     private var filer: Filer by Delegates.notNull()
+    val context = ClassName("android.content", "Context")
 
     override fun init(processingEnv: ProcessingEnvironment) {
         super.init(processingEnv)
@@ -48,16 +49,20 @@ class PreloadProcessor : AbstractProcessor(){
 
     fun createFun(annotations: MutableSet<out TypeElement>?,roundEnv: RoundEnvironment?):TypeSpec.Builder{
         val typeSpec = TypeSpec.classBuilder(LOAD_CLASS)
-            .addSuperinterface(InvokeBase::class)
+//            .addSuperinterface(InvokeBase::class)
 
-        val f = FunSpec.builder("load").addModifiers(KModifier.OVERRIDE)
+        val f = FunSpec.builder("load")//.addModifiers(KModifier.OVERRIDE)
+            .addParameter("applicationContext",context)
         val codeBlock = CodeBlock.builder()
         val elements = roundEnv!!.getElementsAnnotatedWith(AutoPreload::class.java)!!
+        //获取注解对应的运行进程名称
         try {
             elements.forEach {annotatedElement->
+
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
-//                println("11=====${needsElements}=====${annotatedElement.simpleName}  " +
-//                        "${annotatedElement.enclosedElements}")
+                val processName = annotatedElement.getAnnotation(AutoPreload::class.java)
+                println("11=====${processName.process}=====${annotatedElement.simpleName}  " +
+                        "${annotatedElement.enclosedElements}")
                 var containssington = false
                 var invokeMethod : Element? = null
                 run outside@{

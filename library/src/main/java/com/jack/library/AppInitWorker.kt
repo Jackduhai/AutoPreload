@@ -2,20 +2,17 @@ package com.jack.library
 
 import android.content.Context
 import android.util.Log
-import androidx.work.*
 
-class AppInitWorker(appContext: Context, workerParams: WorkerParameters)
-    : Worker(appContext, workerParams) {
+class AppInitWorker(appContext: Context) {
 
-    override fun doWork(): Result {
-        return try {
+    private var appContext : Context = appContext
+
+     fun doWork(){
+       try {
             Log.d("AppInitWorker","===========doWork============")
-            LoadCenter.loadClass(applicationContext)
-            val outputData = workDataOf(Pair("",""))
-            Result.success(outputData)
+            LoadCenter.loadClass(appContext)
         } catch (e: Exception) {
-            e.message?.let { Log.e("AppInitWorker", it) }
-            Result.failure()
+            e.printStackTrace()
         }
     }
 

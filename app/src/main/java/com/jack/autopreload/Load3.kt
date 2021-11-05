@@ -1,16 +1,15 @@
-package com.jack.autopreload2
+package com.jack.autopreload
 
 import com.jack.annotation.AutoPreload
 import com.jack.annotation.LoadMethod
 
 @AutoPreload(process = "main")
-object LoadNews {
+class Load3 {
 
     @LoadMethod
-    fun loadMyMessagePre(){
-        println("==========loadMyMessagePre============")
+    fun Load(){
+        println("==========load3========")
     }
-
 
 
 }
