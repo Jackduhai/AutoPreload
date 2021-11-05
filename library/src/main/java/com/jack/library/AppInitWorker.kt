@@ -1,6 +1,7 @@
 package com.jack.library
 
 import android.content.Context
+import android.util.Log
 import androidx.work.*
 
 class AppInitWorker(appContext: Context, workerParams: WorkerParameters)
@@ -8,11 +9,12 @@ class AppInitWorker(appContext: Context, workerParams: WorkerParameters)
 
     override fun doWork(): Result {
         return try {
-            println("===========doWork============")
-            LoadCenter.loadClass()
+            Log.d("AppInitWorker","===========doWork============")
+            LoadCenter.loadClass(applicationContext)
             val outputData = workDataOf(Pair("",""))
             Result.success(outputData)
         } catch (e: Exception) {
+            e.message?.let { Log.e("AppInitWorker", it) }
             Result.failure()
         }
     }
