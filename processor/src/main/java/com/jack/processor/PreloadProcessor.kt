@@ -24,6 +24,8 @@ class PreloadProcessor : AbstractProcessor(){
     private var messager : Messager? = null
     private var filer: Filer by Delegates.notNull()
     val context = ClassName("android.content", "Context")
+    val processUtil = ClassName("com.jack.library.utils", "ProcessUtil")
+    val preload = ClassName("com.jack.library", "Preload")
 
     override fun init(processingEnv: ProcessingEnvironment) {
         super.init(processingEnv)
@@ -53,6 +55,11 @@ class PreloadProcessor : AbstractProcessor(){
 
         val f = FunSpec.builder("load")//.addModifiers(KModifier.OVERRIDE)
             .addParameter("applicationContext",context)
+        f.addStatement("val mainProcess = applicationContext.packageName")
+        f.addStatement("var curProcess = %T.getCurrentProcessName(applicationContext)",processUtil)
+        f.beginControlFlow("if(!%T.isMultiProcess())",preload)
+        f.addStatement("curProcess = \"all\"")
+        f.endControlFlow()
         val codeBlock = CodeBlock.builder()
         val elements = roundEnv!!.getElementsAnnotatedWith(AutoPreload::class.java)!!
         //获取注解对应的运行进程名称
@@ -85,11 +92,18 @@ class PreloadProcessor : AbstractProcessor(){
                 val cls = ClassName(annotatedElement.enclosingElement.toString(),annotatedElement.simpleName.toString())
 //                codeBlock.add("%T().${needsElements[0]}",cls)
                 invokeMethod?.let {
+                    val pName = if(processName.process == "main"){
+                        ""
+                    } else {
+                        processName.process
+                    }
+                    f.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
                     if(containssington){
                         f.addStatement("%T.${needsElements[0]}",cls)
                     } else {
                         f.addStatement("%T().${needsElements[0]}",cls)
                     }
+                    f.endControlFlow()
                 }
             }
         }catch (e : Exception){

@@ -11,6 +11,7 @@ class AppApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         println("========AppApplication=========${this}")
+        Preload.setMultiProcess(true)
         Preload.init(this)
     }
 }

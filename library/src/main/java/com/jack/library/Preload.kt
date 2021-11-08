@@ -10,7 +10,10 @@ import kotlinx.coroutines.launch
 
 object Preload {
 
-    private var mutiprocess : Boolean = true
+    /**
+     * true支持多进程 初始化时会根据配置 在限制的进程中初始化   false不支持多进程 初始化时不区分进程 全部初始化
+     */
+    private var mutiprocess : Boolean = false
 
     fun init(application: Application){
         GlobalScope.launch(Dispatchers.IO){
@@ -21,6 +24,10 @@ object Preload {
 
     fun setMultiProcess(support:Boolean){
         mutiprocess = support
+    }
+
+    fun isMultiProcess():Boolean{
+        return mutiprocess
     }
 
 }

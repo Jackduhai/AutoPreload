@@ -8,5 +8,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
 public @interface AutoPreload {
-    String process() default "";
+    String process() default "main";//如果支持多进程 不配置就默认主进程才初始化
 }
