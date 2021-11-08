@@ -11,4 +11,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.CLASS)
 public @interface LoadMethod {
+    ThreadMode threadMode() default ThreadMode.BACKGROUND;
 }

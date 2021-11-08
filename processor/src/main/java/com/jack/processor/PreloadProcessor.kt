@@ -26,6 +26,10 @@ class PreloadProcessor : AbstractProcessor(){
     val context = ClassName("android.content", "Context")
     val processUtil = ClassName("com.jack.library.utils", "ProcessUtil")
     val preload = ClassName("com.jack.library", "Preload")
+    val threadModel = ClassName("com.jack.annotation", "ThreadMode")
+    val dispatcher = ClassName("kotlinx.coroutines", "Dispatchers")
+    val globalScope = ClassName("kotlinx.coroutines", "GlobalScope")
+    val launch = ClassName("kotlinx.coroutines", "launch")
 
     override fun init(processingEnv: ProcessingEnvironment) {
         super.init(processingEnv)
@@ -90,19 +94,31 @@ class PreloadProcessor : AbstractProcessor(){
 
                 println("00==containssington:${containssington}==========needsElements:${needsElements}=======")
                 val cls = ClassName(annotatedElement.enclosingElement.toString(),annotatedElement.simpleName.toString())
-//                codeBlock.add("%T().${needsElements[0]}",cls)
                 invokeMethod?.let {
+                    //获取方法对应的注解值
+                    val methodAnnotation = it.getAnnotation(LoadMethod::class.java)
                     val pName = if(processName.process == "main"){
                         ""
                     } else {
                         processName.process
                     }
                     f.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
+                    f.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN)",threadModel,threadModel)
+                    f.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
+                    f.beginControlFlow("")
                     if(containssington){
                         f.addStatement("%T.${needsElements[0]}",cls)
                     } else {
                         f.addStatement("%T().${needsElements[0]}",cls)
                     }
+                    f.endControlFlow()
+                    f.nextControlFlow("else")
+                    if(containssington){
+                        f.addStatement("%T.${needsElements[0]}",cls)
+                    } else {
+                        f.addStatement("%T().${needsElements[0]}",cls)
+                    }
+                    f.endControlFlow()
                     f.endControlFlow()
                 }
             }

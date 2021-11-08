@@ -8,7 +8,7 @@ object LoadNews {
 
     @LoadMethod
     fun loadMyMessagePre(){
-        println("==========loadMyMessagePre============")
+        println("==========loadMyMessagePre============${Thread.currentThread().name}")
     }
 
 
