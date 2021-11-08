@@ -4,8 +4,8 @@
         maven { url 'https://jitpack.io' }
     }
 
-    kapt "com.github.Jackduhai.AutoPreload:processor:1.0.1.8"
-    implementation 'com.github.Jackduhai.AutoPreload:autopreload:1.0.1.8'
+    kapt "com.github.Jackduhai.AutoPreload:processor:1.0.1.12"
+    implementation 'com.github.Jackduhai.AutoPreload:autopreload:1.0.1.12'
 
     AutoPreload初始化
       Preload.setMultiProcess(true)//是否开启多进程支持 如false则多进程配置无效 init方法调用时不区分进程 会全部调用预加载方法
