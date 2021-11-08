@@ -5,5 +5,3 @@ D
 jitpack.yml,3/f/3f384c5ac91d01ea9ab11981ab87f1d958f63284
 h
 8library/src/main/java/com/jack/library/BaseRepository.kt,4/5/456ea61f6d42cc098a385c4478991abca1ff5fa7
-G
-annotation/build.gradle,f/1/f1bd85def6a85711b884f0cbe5a83a15948f8344
