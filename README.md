@@ -34,3 +34,6 @@
 # MemoryCache配套使用 可以进行预加载缓存 effectTime put时可设置生效时间 默认5分钟 如需永久有效则设置成-1
     MemoryCache.put("","")
     MemoryCache.get("")
+
+# 混淆规则
+    -keep class com.jack.auto.** { *; }
