@@ -1,4 +1,4 @@
-# AutoPreload
+# AutoPreload 内部使用kotlin协程进行高效调用，避免开启多线程造成的资源浪费
 
     repositories {
         maven { url 'https://jitpack.io' }
