@@ -8,6 +8,7 @@ import com.jack.annotation.InvokeBase
 import com.jack.annotation.LoadMethod
 import com.jack.processor.util.PrivateMethodException
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.lang.Exception
 import javax.annotation.processing.*
 import javax.lang.model.SourceVersion
@@ -30,6 +31,8 @@ class PreloadProcessor : AbstractProcessor(){
     val dispatcher = ClassName("kotlinx.coroutines", "Dispatchers")
     val globalScope = ClassName("kotlinx.coroutines", "GlobalScope")
     val launch = ClassName("kotlinx.coroutines", "launch")
+    val activity = ClassName("android.app", "Activity")
+    val fragment = ClassName("androidx.fragment.app", "Fragment")
 
     override fun init(processingEnv: ProcessingEnvironment) {
         super.init(processingEnv)
@@ -56,20 +59,37 @@ class PreloadProcessor : AbstractProcessor(){
     fun createFun(annotations: MutableSet<out TypeElement>?,roundEnv: RoundEnvironment?):TypeSpec.Builder{
         val typeSpec = TypeSpec.classBuilder(LOAD_CLASS)
 //            .addSuperinterface(InvokeBase::class)
+        typeSpec.addProperty(PropertySpec.builder("map",Map::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),Any::class.asClassName()),KModifier.PRIVATE)
+            .initializer("HashMap<String,Any>()").build())
+        //保存非单例对象的调用方法
+        typeSpec.addProperty(PropertySpec.builder("mapFunctionLoad",Map::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName()),KModifier.PRIVATE)
+            .initializer("HashMap<String,String>()").build())
+        //保存非单例对象的资源清理方法
+        typeSpec.addProperty(PropertySpec.builder("mapFunctionClean",Map::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName()),KModifier.PRIVATE)
+            .initializer("HashMap<String,String>()").build())
+        typeSpec.addProperty(PropertySpec.builder("mapTempObj",Map::class.asClassName()
+                .parameterizedBy(String::class.asClassName(),Any::class.asClassName()),KModifier.PRIVATE)
+                .initializer("HashMap<String,Any>()").build())
 
-        val f = FunSpec.builder("load")//.addModifiers(KModifier.OVERRIDE)
-            .addParameter("applicationContext",context)
+        val f = FunSpec.builder("load").addParameter("applicationContext",context)
+        f.addStatement("register()")
         f.addStatement("val mainProcess = applicationContext.packageName")
         f.addStatement("var curProcess = %T.getCurrentProcessName(applicationContext)",processUtil)
         f.beginControlFlow("if(!%T.isMultiProcess())",preload)
         f.addStatement("curProcess = \"all\"")
         f.endControlFlow()
-        val codeBlock = CodeBlock.builder()
+
+        val fLoadActivity = FunSpec.builder("loadActivity").addParameter("activity",activity)
+        val fLoadFragment = FunSpec.builder("loadFragment").addParameter("fragment",fragment)
+        val register = FunSpec.builder("register")
+
         val elements = roundEnv!!.getElementsAnnotatedWith(AutoPreload::class.java)!!
         //获取注解对应的运行进程名称
         try {
             elements.forEach {annotatedElement->
-
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
                 val processName = annotatedElement.getAnnotation(AutoPreload::class.java)
                 println("11=====${processName.process}=====${annotatedElement.simpleName}  " +
@@ -126,7 +146,14 @@ class PreloadProcessor : AbstractProcessor(){
             e.printStackTrace()
         }
         typeSpec.addFunction(f.build())
+        typeSpec.addFunction(fLoadActivity.build())
+        typeSpec.addFunction(fLoadFragment.build())
+        typeSpec.addFunction(register.build())
         return typeSpec
+
+    }
+
+    fun createLoadActivityFun(){
 
     }
 
