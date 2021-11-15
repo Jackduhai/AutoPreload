@@ -14,6 +14,7 @@ class FragmentLifecycleAndroidX : FragmentManager.FragmentLifecycleCallbacks() {
     ) {
         super.onFragmentPreCreated(fm, f, savedInstanceState)
         println("==========onFragmentPreCreated============${f}")
+        LoadCenter.loadFragmentPre(f)
     }
 
     override fun onFragmentCreated(fm: FragmentManager, f: Fragment, savedInstanceState: Bundle?) {

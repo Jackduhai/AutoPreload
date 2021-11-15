@@ -14,10 +14,11 @@ class ActivityLifecycleAuto : Application.ActivityLifecycleCallbacks {
 
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-        println("=========onActivityCreated====${savedInstanceState}======${activity}")
+        println("=========onActivityCreated=======${activity}")
         if (activity is FragmentActivity) {
             activity.supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentLifecycleAndroidX,true)
         }
+        LoadCenter.loadActivityPre(activity)
     }
 
     override fun onActivityStarted(activity: Activity) {
@@ -42,5 +43,6 @@ class ActivityLifecycleAuto : Application.ActivityLifecycleCallbacks {
 
     override fun onActivityDestroyed(activity: Activity) {
         println("=========onActivityDestroyed==========${activity}")
+        LoadCenter.loadActivityDestroy(activity)
     }
 }

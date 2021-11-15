@@ -2,6 +2,7 @@ package com.jack.processor
 
 import com.google.auto.service.AutoService
 import com.jack.annotation.AutoPreload
+import com.jack.annotation.CleanMethod
 import com.jack.annotation.Const.Companion.AUTO_CODE_PACKAGE
 import com.jack.annotation.Const.Companion.LOAD_CLASS
 import com.jack.annotation.InvokeBase
@@ -59,20 +60,22 @@ class PreloadProcessor : AbstractProcessor(){
     fun createFun(annotations: MutableSet<out TypeElement>?,roundEnv: RoundEnvironment?):TypeSpec.Builder{
         val typeSpec = TypeSpec.classBuilder(LOAD_CLASS)
 //            .addSuperinterface(InvokeBase::class)
-        typeSpec.addProperty(PropertySpec.builder("map",Map::class.asClassName()
-            .parameterizedBy(String::class.asClassName(),Any::class.asClassName()),KModifier.PRIVATE)
-            .initializer("HashMap<String,Any>()").build())
+        //保存非单例对象类路径
+        typeSpec.addProperty(PropertySpec.builder("map",LinkedHashMap::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName()),KModifier.PRIVATE)
+            .initializer("LinkedHashMap<String,String>()").build())
         //保存非单例对象的调用方法
-        typeSpec.addProperty(PropertySpec.builder("mapFunctionLoad",Map::class.asClassName()
+        typeSpec.addProperty(PropertySpec.builder("mapFunctionLoad",LinkedHashMap::class.asClassName()
             .parameterizedBy(String::class.asClassName(),String::class.asClassName()),KModifier.PRIVATE)
-            .initializer("HashMap<String,String>()").build())
+            .initializer("LinkedHashMap<String,String>()").build())
         //保存非单例对象的资源清理方法
-        typeSpec.addProperty(PropertySpec.builder("mapFunctionClean",Map::class.asClassName()
+        typeSpec.addProperty(PropertySpec.builder("mapFunctionClean",LinkedHashMap::class.asClassName()
             .parameterizedBy(String::class.asClassName(),String::class.asClassName()),KModifier.PRIVATE)
-            .initializer("HashMap<String,String>()").build())
-        typeSpec.addProperty(PropertySpec.builder("mapTempObj",Map::class.asClassName()
-                .parameterizedBy(String::class.asClassName(),Any::class.asClassName()),KModifier.PRIVATE)
-                .initializer("HashMap<String,Any>()").build())
+            .initializer("LinkedHashMap<String,String>()").build())
+        typeSpec.addProperty(PropertySpec.builder("mapTempObj",LinkedHashMap::class.asClassName()
+                .parameterizedBy(String::class.asClassName(),Pair::class.asClassName()
+                    .parameterizedBy(Any::class.asClassName(),Any::class.asClassName())),KModifier.PRIVATE)
+                .initializer("LinkedHashMap<String,Pair<Any,Any>>()").build())
 
         val f = FunSpec.builder("load").addParameter("applicationContext",context)
         f.addStatement("register()")
@@ -83,6 +86,7 @@ class PreloadProcessor : AbstractProcessor(){
         f.endControlFlow()
 
         val fLoadActivity = FunSpec.builder("loadActivity").addParameter("activity",activity)
+        val destroyActivity = FunSpec.builder("destroyActivity").addParameter("activity",activity)
         val fLoadFragment = FunSpec.builder("loadFragment").addParameter("fragment",fragment)
         val register = FunSpec.builder("register")
 
@@ -91,6 +95,7 @@ class PreloadProcessor : AbstractProcessor(){
         try {
             elements.forEach {annotatedElement->
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
+                val cleanElements = annotatedElement.childElementsAnnotatedWith(CleanMethod::class.java)
                 val processName = annotatedElement.getAnnotation(AutoPreload::class.java)
                 println("11=====${processName.process}=====${annotatedElement.simpleName}  " +
                         "${annotatedElement.enclosedElements}")
@@ -122,6 +127,7 @@ class PreloadProcessor : AbstractProcessor(){
                     } else {
                         processName.process
                     }
+
                     f.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
                     f.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN)",threadModel,threadModel)
                     f.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
@@ -140,21 +146,54 @@ class PreloadProcessor : AbstractProcessor(){
                     }
                     f.endControlFlow()
                     f.endControlFlow()
+
+                    //register
+                    if (processName.target != "application") {
+                        register.addStatement(" map[\"${processName.target}\"] = \"${cls.reflectionName()}\"")
+
+                        register.addStatement(" mapFunctionLoad[\"${cls.reflectionName()}\"] = \"${needsElements[0].simpleName}\"")
+
+                        register.addStatement(" mapFunctionClean[\"${cls.reflectionName()}\"] = \"${cleanElements[0].simpleName}\"")
+                    }
                 }
             }
         }catch (e : Exception){
             e.printStackTrace()
         }
+
+        createLoadActivityFun(fLoadActivity)
         typeSpec.addFunction(f.build())
         typeSpec.addFunction(fLoadActivity.build())
+        typeSpec.addFunction(destroyActivity.build())
         typeSpec.addFunction(fLoadFragment.build())
         typeSpec.addFunction(register.build())
         return typeSpec
 
     }
 
-    fun createLoadActivityFun(){
+    private fun createRegisterFun(processName: AutoPreload,register: FunSpec.Builder,cls: ClassName) {
+        if (processName.target != "application") {
+            register.addStatement(" map[\"${processName.target}\"] = \"${cls.reflectionName()}\"")
+        }
+    }
 
+    fun createRegisterFun(builder: FunSpec.Builder){
+        builder.addStatement("println(\"=====11========\${activity.javaClass.name}============\")")
+    }
+
+    fun createLoadActivityFun(builder: FunSpec.Builder){
+        val codeBlock = CodeBlock.builder()
+        codeBlock.addStatement("  val targetPath = map[activity.javaClass.name]\n" +
+                "        targetPath?.let {\n" +
+                "        val cls = Class.forName(it)\n" +
+                "        val obj = cls?.getConstructor()?.newInstance()!!\n" +
+                "        val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
+                "        load?.isAccessible = true\n" +
+                "        load?.invoke(obj)\n" +
+                "        val pair = Pair<Any,Any>(obj,cls)\n" +
+                "         mapTempObj[activity.javaClass.name] = pair\n" +
+                " }")
+        builder.addCode(codeBlock.build())
     }
 
     fun createFileBuilder(): FileSpec.Builder {
