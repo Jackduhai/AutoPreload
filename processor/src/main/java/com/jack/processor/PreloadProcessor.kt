@@ -92,6 +92,13 @@ class PreloadProcessor : AbstractProcessor(){
         loadTempCode.addStatement("curProcess = \"all\"")
         loadTempCode.endControlFlow()
 
+        val cleanTempCode = CodeBlock.builder()
+        cleanTempCode.addStatement("val mainProcess = activity.packageName")
+        cleanTempCode.addStatement("var curProcess = %T.getCurrentProcessName(activity)",processUtil)
+        cleanTempCode.beginControlFlow("if(!%T.isMultiProcess())",preload)
+        cleanTempCode.addStatement("curProcess = \"all\"")
+        cleanTempCode.endControlFlow()
+
         val fLoadActivity = FunSpec.builder("loadActivity").addParameter("activity",activity)
         val destroyActivity = FunSpec.builder("destroyActivity").addParameter("activity",activity)
         val fLoadFragment = FunSpec.builder("loadFragment").addParameter("fragment",fragment)
@@ -104,10 +111,11 @@ class PreloadProcessor : AbstractProcessor(){
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
                 val cleanElements = annotatedElement.childElementsAnnotatedWith(CleanMethod::class.java)
                 val processName = annotatedElement.getAnnotation(AutoPreload::class.java)
-                println("11=====${processName.process}=====${annotatedElement.simpleName}  " +
+                println("00=====${processName.process}=====${annotatedElement.simpleName}  " +
                         "${annotatedElement.enclosedElements}")
                 var containssington = false
                 var invokeMethod : Element? = null
+                var cleanMethod : Element? = null
                 run outside@{
                     annotatedElement.enclosedElements.forEach {
                         containssington = it.simpleName.toString() == "INSTANCE"
@@ -124,11 +132,20 @@ class PreloadProcessor : AbstractProcessor(){
                     }
                 }
 
-                println("00==containssington:${containssington}==========needsElements:${needsElements}=======")
+                cleanElements.forEach {
+                    if(!it.modifiers.contains(Modifier.PRIVATE)){
+                        cleanMethod = it
+                    } else {
+                        throw PrivateMethodException(it, LoadMethod::class.java)
+                    }
+                }
+
+                println("11==containssington:${containssington}==========needsElements:${needsElements}=======")
                 val cls = ClassName(annotatedElement.enclosingElement.toString(),annotatedElement.simpleName.toString())
-                invokeMethod?.let {
+                if(invokeMethod != null){
                     //获取方法对应的注解值
-                    val methodAnnotation = it.getAnnotation(LoadMethod::class.java)
+                    val methodAnnotation = invokeMethod!!.getAnnotation(LoadMethod::class.java)
+                    val cleanAnnotation = cleanMethod?.getAnnotation(CleanMethod::class.java)
                     val pName = if(processName.process == "main"){
                         ""
                     } else {
@@ -155,9 +172,10 @@ class PreloadProcessor : AbstractProcessor(){
                         f.endControlFlow()
                         f.endControlFlow()
                     } else {
-                        loadTempCode.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
+                        loadTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
+                                "&& activity.javaClass.name == \"${processName.target}\")")
                         loadTempCode.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN " +
-                                "&& targetPath == \"${cls}\")",threadModel,threadModel)
+                                ")",threadModel,threadModel)
                         loadTempCode.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
                         loadTempCode.beginControlFlow("")
                         if(containssington){
@@ -174,16 +192,39 @@ class PreloadProcessor : AbstractProcessor(){
                         }
                         loadTempCode.endControlFlow()
                         loadTempCode.endControlFlow()
+
+                        if(cleanAnnotation != null){
+                            cleanTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
+                                    "&& activity.javaClass.name == \"${processName.target}\")")
+                            cleanTempCode.beginControlFlow("if(%T.${cleanAnnotation?.threadMode} == %T.BACKGROUND " +
+                                    ")",threadModel,threadModel)
+                            cleanTempCode.addStatement("%T.%T(%T.IO)",globalScope,launch,dispatcher)
+                            cleanTempCode.beginControlFlow("")
+                            if(containssington){
+                                cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
+                            } else {
+                                cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                            }
+                            cleanTempCode.endControlFlow()
+                            cleanTempCode.nextControlFlow("else")
+                            if(containssington){
+                                cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
+                            } else {
+                                cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                            }
+                            cleanTempCode.endControlFlow()
+                            cleanTempCode.endControlFlow()
+                        }
                     }
+                }
 
-                    //register 目标不是application且不是单例时启动时则注册到map中
-                    if (processName.target != "application" && !containssington) {
-                        register.addStatement(" map[\"${processName.target}\"] = \"${cls.reflectionName()}\"")
+                //register 目标不是application且不是单例时启动时则注册到map中
+                if (processName.target != "application" && !containssington) {
+                    register.addStatement(" map[\"${processName.target}\"] = \"${cls.reflectionName()}\"")
 
-                        register.addStatement(" mapFunctionLoad[\"${cls.reflectionName()}\"] = \"${needsElements[0].simpleName}\"")
+                    register.addStatement(" mapFunctionLoad[\"${cls.reflectionName()}\"] = \"${needsElements[0].simpleName}\"")
 
-                        register.addStatement(" mapFunctionClean[\"${cls.reflectionName()}\"] = \"${cleanElements[0].simpleName}\"")
-                    }
+                    register.addStatement(" mapFunctionClean[\"${cls.reflectionName()}\"] = \"${cleanElements[0].simpleName}\"")
                 }
             }
         }catch (e : Exception){
@@ -191,7 +232,7 @@ class PreloadProcessor : AbstractProcessor(){
         }
 
         createLoadActivityFun(fLoadActivity,loadTempCode)
-        createdestroyActivityFun(destroyActivity)
+        createdestroyActivityFun(destroyActivity,cleanTempCode)
         typeSpec.addFunction(f.build())
         typeSpec.addFunction(fLoadActivity.build())
         typeSpec.addFunction(destroyActivity.build())
@@ -226,20 +267,24 @@ class PreloadProcessor : AbstractProcessor(){
         builder.nextControlFlow("else")
         builder.addCode(codeTemp.build())
         builder.endControlFlow()
-//        builder.addCode(codeBlock.build())
     }
 
-    fun createdestroyActivityFun(builder: FunSpec.Builder){
+    fun createdestroyActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("val targetPath = map[activity.javaClass.name]")
+        builder.beginControlFlow("if(targetPath != null)")
         val codeBlock = CodeBlock.builder()
-        codeBlock.addStatement("        val targetPath = map[activity.javaClass.name]\n" +
-                "        val pair = mapTempObj[activity.javaClass.name]\n" +
-                "        val cls = pair?.second\n" +
-                "        val obj = pair?.first\n" +
-                "        val cleanMethod = (cls as? Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
-                "        cleanMethod?.isAccessible = true\n" +
-                "        cleanMethod?.invoke(obj)\n" +
-                "        mapTempObj.remove(activity.javaClass.name)")
+        codeBlock.add("  val pair = mapTempObj[activity.javaClass.name]\n" +
+                "     val cls = pair?.second\n" +
+                "     val obj = pair?.first\n" +
+                "     val cleanMethod = (cls as?\n" +
+                "     Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
+                "     cleanMethod?.isAccessible = true\n" +
+                "     cleanMethod?.invoke(obj)\n" +
+                "     mapTempObj.remove(activity.javaClass.name)")
         builder.addCode(codeBlock.build())
+        builder.nextControlFlow("else")
+        builder.addCode(codeTemp.build())
+        builder.endControlFlow()
     }
 
     fun createFileBuilder(): FileSpec.Builder {

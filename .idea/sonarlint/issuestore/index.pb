@@ -39,8 +39,6 @@ q
 Aapp/src/main/java/com/jack/autopreload/ui/login/LoginViewModel.kt,9/6/96b10cf44d4fdb0c78830aea3c8521161d55c039
 x
 Happ/src/main/java/com/jack/autopreload/ui/login/LoginViewModelFactory.kt,8/3/8366e1aa85b0849e34952a8634c092d3ab8d0638
-p
-@app/src/main/java/com/jack/autopreload/ui/login/LoginFragment.kt,8/8/88bf49050dc55ff666aef0017c420c68bd66abed
 D
 library/build.gradle,b/c/bc1e6337a6cee4d549ebc79c089f4196728c3aeb
 s

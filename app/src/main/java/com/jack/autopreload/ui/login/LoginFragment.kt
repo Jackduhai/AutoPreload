@@ -1,5 +1,6 @@
 package com.jack.autopreload.ui.login
 
+import android.content.Intent
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.annotation.StringRes
@@ -15,6 +16,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.Toast
+import com.jack.autopreload.MainActivity2
 import com.jack.autopreload.databinding.FragmentLoginBinding
 
 import com.jack.autopreload.R
@@ -110,7 +112,9 @@ class LoginFragment : Fragment() {
                 usernameEditText.text.toString(),
                 passwordEditText.text.toString()
             )
+            startActivity(Intent(requireActivity(),MainActivity2::class.java))
         }
+        loginButton.isEnabled = true
     }
 
     private fun updateUiWithUser(model: LoggedInUserView) {
