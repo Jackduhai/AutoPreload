@@ -99,8 +99,10 @@ class PreloadProcessor : AbstractProcessor(){
         cleanTempCode.addStatement("curProcess = \"all\"")
         cleanTempCode.endControlFlow()
 
-        val fLoadPublicMethod = FunSpec.builder("loadPublic").addParameter("context",context).addParameter("path",String::class)
-        val destroyPublicMethod = FunSpec.builder("destroyPublic").addParameter("context",context).addParameter("path",String::class)
+        val fLoadPublicMethod = FunSpec.builder("loadPublic").addModifiers(KModifier.PRIVATE)
+            .addParameter("context",context).addParameter("path",String::class)
+        val destroyPublicMethod = FunSpec.builder("destroyPublic").addModifiers(KModifier.PRIVATE)
+            .addParameter("context",context).addParameter("path",String::class)
         val fLoadActivity = FunSpec.builder("loadActivity").addParameter("context",activity)
         val destroyActivity = FunSpec.builder("destroyActivity").addParameter("context",activity)
         val fLoadFragment = FunSpec.builder("loadFragment").addParameter("context",fragment)
@@ -139,7 +141,7 @@ class PreloadProcessor : AbstractProcessor(){
                     if(!it.modifiers.contains(Modifier.PRIVATE)){
                         cleanMethod = it
                     } else {
-                        throw PrivateMethodException(it, LoadMethod::class.java)
+                        throw PrivateMethodException(it, CleanMethod::class.java)
                     }
                 }
 

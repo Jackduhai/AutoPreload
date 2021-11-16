@@ -14,7 +14,7 @@ class LoadFragment {
     }
 
     @CleanMethod(threadMode = ThreadMode.MAIN)
-    fun cleanFragment(){
+    private fun cleanFragment(){
         println("${this}========cleanLoadFragment=========${Thread.currentThread().name}")
     }
 
