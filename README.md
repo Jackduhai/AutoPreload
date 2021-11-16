@@ -1,4 +1,4 @@
-# AutoPreload 内部使用kotlin协程进行高效调用，避免开启多线程造成的资源浪费
+# AutoPreload 内部使用kotlin协程进行高效调用，避免开启多线程造成的资源浪费，并且可以与activity或fragment进行生命周期绑定，当监听到对应的组件开启会进行自动调用
 
     repositories {
         maven { url 'https://jitpack.io' }
@@ -35,7 +35,7 @@
     }
 
 #以上是在Application初始化时需要直接启动的配置方式，下面介绍一下绑定生命周期的配置方式
- 框架支持Activity和fragment生命周期感知能力，配置好target后可以自动进行资源的管理完全与fragment和activity进行分离
+ 框架支持Activity和fragment生命周期感知能力，配置好target后可以自动进行资源的管理完全与fragment和activity进行分离，如不配置则默认在application初始化时进行调用
  demo如下
 
  @AutoPreload(process = ":p2",target = "com.jack.autopreload.MainActivity")//target是需要绑定的fragment或activity全路径
