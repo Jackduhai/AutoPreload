@@ -5,16 +5,16 @@ import com.jack.annotation.CleanMethod
 import com.jack.annotation.LoadMethod
 import com.jack.annotation.ThreadMode
 
-@AutoPreload(process = ":p2",target = "com.jack.autopreload.SettingsFragment")
+@AutoPreload(target = "com.jack.autopreload.SettingsFragment",process = ":p2")
 class LoadFragment {
 
-    @LoadMethod
+    @LoadMethod(threadMode = ThreadMode.BACKGROUND) //如果有声明生命周期的target且是非单例对象则 此方法的threadMode不生效 都为ui线程调用
     fun loadFragmentPre(){
         println("${this}==========LoadFragment============${Thread.currentThread().name}")
     }
 
-    @CleanMethod(threadMode = ThreadMode.MAIN)
-    private fun cleanFragment(){
+    @CleanMethod(threadMode = ThreadMode.BACKGROUND) //如果有声明生命周期的target且是非单例对象则 此方法的threadMode不生效 都为ui线程调用
+    fun cleanFragment(){
         println("${this}========cleanLoadFragment=========${Thread.currentThread().name}")
     }
 

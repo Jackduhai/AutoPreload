@@ -76,6 +76,11 @@ class PreloadProcessor : AbstractProcessor(){
                 .parameterizedBy(String::class.asClassName(),Pair::class.asClassName()
                     .parameterizedBy(Any::class.asClassName(),Any::class.asClassName())),KModifier.PRIVATE)
                 .initializer("LinkedHashMap<String,Pair<Any,Any>>()").build())
+        //保存类和方法运行的线程相关信息
+        typeSpec.addProperty(PropertySpec.builder("mapThreadInfo",LinkedHashMap::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName())
+            ,KModifier.PRIVATE)
+            .initializer("LinkedHashMap<String,String>()").build())
 
         val f = FunSpec.builder("load").addParameter("applicationContext",context)
         f.addStatement("register()")
@@ -86,11 +91,6 @@ class PreloadProcessor : AbstractProcessor(){
         f.endControlFlow()
 
         val loadTempCode = CodeBlock.builder()
-        loadTempCode.addStatement("val mainProcess = context.packageName")
-        loadTempCode.addStatement("var curProcess = %T.getCurrentProcessName(context)",processUtil)
-        loadTempCode.beginControlFlow("if(!%T.isMultiProcess())",preload)
-        loadTempCode.addStatement("curProcess = \"all\"")
-        loadTempCode.endControlFlow()
 
         val cleanTempCode = CodeBlock.builder()
         cleanTempCode.addStatement("val mainProcess = context.packageName")
@@ -233,6 +233,12 @@ class PreloadProcessor : AbstractProcessor(){
 
                     register.addStatement(" mapFunctionClean[\"${cls.reflectionName()}\"] = \"${cleanElements[0].simpleName}\"")
                 }
+                val pName = if(processName.process == "main"){
+                    ""
+                } else {
+                    processName.process
+                }
+                register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}\"] = \"${pName}\"")
             }
         }catch (e : Exception){
             e.printStackTrace()
@@ -267,10 +273,18 @@ class PreloadProcessor : AbstractProcessor(){
     }
 
     fun createLoadPublicFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("val mainProcess = context.packageName")
+        builder.addStatement("var curProcess = %T.getCurrentProcessName(context)",processUtil)
+        builder.beginControlFlow("if(!%T.isMultiProcess())",preload)
+        builder.addStatement("curProcess = \"all\"")
+        builder.endControlFlow()
         builder.addStatement("val targetPath = map[path]")
         builder.beginControlFlow("if(targetPath != null)")
         val codeBlock = CodeBlock.builder()
-        codeBlock.add("            val cls = Class.forName(targetPath)\n" +
+        codeBlock.add("if(\"\${mainProcess}\${mapThreadInfo[targetPath]}\" != curProcess && curProcess != \"all\"){\n" +
+                "                            return\n" +
+                "                        }\n"+
+                "            val cls = Class.forName(targetPath)\n" +
                 "            val obj = cls?.getConstructor()?.newInstance()!!\n" +
                 "            val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
                 "            load?.isAccessible = true\n" +

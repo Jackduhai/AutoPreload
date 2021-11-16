@@ -11,8 +11,6 @@ T
 $library/src/main/AndroidManifest.xml,6/d/6d9c1fcb936519b1362021d93d176c864d55afa2
 >
 app/.gitignore,5/1/51e1c5d383dfaa35e0e7e5873a0a99355a86880f
-P
- app/src/main/AndroidManifest.xml,8/c/8c55c3ccc257e5907959013f99656e4c8ec3903e
 j
 :annotation/src/main/java/com/jack/annotation/ThreadMode.kt,4/6/46e367f2cbdca8db3256253ab0ca8ee8667e9ec3
 9
