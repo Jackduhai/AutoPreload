@@ -223,6 +223,9 @@ class PreloadProcessor : AbstractProcessor(){
                             }
                         }
                     }
+                    register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}\"] = \"${pName}\"")
+                    register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}.${needsElements[0].simpleName}\"] = \"${methodAnnotation?.threadMode}\"")
+                    register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}.${cleanElements[0].simpleName}\"] = \"${cleanAnnotation?.threadMode}\"")
                 }
 
                 //register 目标不是application且不是单例时启动时则注册到map中
@@ -233,12 +236,6 @@ class PreloadProcessor : AbstractProcessor(){
 
                     register.addStatement(" mapFunctionClean[\"${cls.reflectionName()}\"] = \"${cleanElements[0].simpleName}\"")
                 }
-                val pName = if(processName.process == "main"){
-                    ""
-                } else {
-                    processName.process
-                }
-                register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}\"] = \"${pName}\"")
             }
         }catch (e : Exception){
             e.printStackTrace()
@@ -281,15 +278,26 @@ class PreloadProcessor : AbstractProcessor(){
         builder.addStatement("val targetPath = map[path]")
         builder.beginControlFlow("if(targetPath != null)")
         val codeBlock = CodeBlock.builder()
-        codeBlock.add("if(\"\${mainProcess}\${mapThreadInfo[targetPath]}\" != curProcess && curProcess != \"all\"){\n" +
-                "                            return\n" +
-                "                        }\n"+
+        codeBlock.add("if (\"\${mainProcess}\${mapThreadInfo[targetPath]}\" != curProcess && curProcess != \"all\") {\n" +
+                "                return\n" +
+                "            }\n" +
                 "            val cls = Class.forName(targetPath)\n" +
                 "            val obj = cls?.getConstructor()?.newInstance()!!\n" +
                 "            val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
                 "            load?.isAccessible = true\n" +
-                "            load?.invoke(obj)\n" +
-                "            val pair = Pair<Any,Class<*>>(obj,cls)\n" +
+                "            val threadInfo = mapThreadInfo[\"\${targetPath}.\${mapFunctionLoad[targetPath]}\"]\n" +
+                "            if (threadInfo == \"BACKGROUND\") {\n" +
+                "                GlobalScope.launch(Dispatchers.IO)\n" +
+                "                {\n" +
+                "                    load?.invoke(obj)\n" +
+                "                }\n" +
+                "            } else {\n" +
+                "                GlobalScope.launch(Dispatchers.Main)\n" +
+                "                {\n" +
+                "                    load?.invoke(obj)\n" +
+                "                }\n" +
+                "            }\n" +
+                "            val pair = Pair<Any, Class<*>>(obj, cls)\n" +
                 "            mapTempObj[path] = pair")
         builder.addCode(codeBlock.build())
         builder.nextControlFlow("else")
@@ -317,14 +325,26 @@ class PreloadProcessor : AbstractProcessor(){
         builder.addStatement("val targetPath = map[path]")
         builder.beginControlFlow("if(targetPath != null)")
         val codeBlock = CodeBlock.builder()
-        codeBlock.add("  val pair = mapTempObj[path]\n" +
-                "     val cls = pair?.second\n" +
-                "     val obj = pair?.first\n" +
-                "     val cleanMethod = (cls as?\n" +
-                "     Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
-                "     cleanMethod?.isAccessible = true\n" +
-                "     cleanMethod?.invoke(obj)\n" +
-                "     mapTempObj.remove(path)")
+        codeBlock.add("val pair = mapTempObj[path]\n" +
+                "            val cls = pair?.second\n" +
+                "            val obj = pair?.first\n" +
+                "            val cleanMethod = (cls as?\n" +
+                "                    Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
+                "            cleanMethod?.isAccessible = true\n" +
+                "            val threadInfo =\n" +
+                "                mapThreadInfo[\"\${targetPath}.\${mapFunctionClean[targetPath]}\"]\n" +
+                "            if (threadInfo == \"BACKGROUND\") {\n" +
+                "                GlobalScope.launch(Dispatchers.IO)\n" +
+                "                {\n" +
+                "                    cleanMethod?.invoke(obj)\n" +
+                "                }\n" +
+                "            } else {\n" +
+                "                GlobalScope.launch(Dispatchers.Main)\n" +
+                "                {\n" +
+                "                    cleanMethod?.invoke(obj)\n" +
+                "                }\n" +
+                "            }\n" +
+                "            mapTempObj.remove(path)")
         builder.addCode(codeBlock.build())
         builder.nextControlFlow("else")
         builder.addCode(codeTemp.build())

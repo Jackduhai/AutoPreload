@@ -8,12 +8,12 @@ import com.jack.annotation.ThreadMode
 @AutoPreload(target = "com.jack.autopreload.SettingsFragment",process = ":p2")
 class LoadFragment {
 
-    @LoadMethod(threadMode = ThreadMode.BACKGROUND) //如果有声明生命周期的target且是非单例对象则 此方法的threadMode不生效 都为ui线程调用
+    @LoadMethod(threadMode = ThreadMode.BACKGROUND)
     fun loadFragmentPre(){
         println("${this}==========LoadFragment============${Thread.currentThread().name}")
     }
 
-    @CleanMethod(threadMode = ThreadMode.BACKGROUND) //如果有声明生命周期的target且是非单例对象则 此方法的threadMode不生效 都为ui线程调用
+    @CleanMethod(threadMode = ThreadMode.MAIN)
     fun cleanFragment(){
         println("${this}========cleanLoadFragment=========${Thread.currentThread().name}")
     }
