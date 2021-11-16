@@ -18,11 +18,7 @@ j
 9
 	README.md,8/e/8ec9a00bfd09b3190ac6b22251dbb1aa95a0579d
 g
-7app/src/main/java/com/jack/autopreload/MainActivity2.kt,3/d/3d4b38db5ac4e119943dab6d7d74816bbd3b6c76
-g
 7library/src/main/java/com/jack/library/AppInitWorker.kt,d/5/d5ed522003587247d70b575685caaec631ef64cf
-@
-app/build.gradle,f/4/f4a01d6a4fcb971362ec00a83903fd3902f52164
 q
 Aapp/src/main/java/com/jack/autopreload/ui/login/LoginFormState.kt,9/c/9c656905b5112ae863167e2f156acd6090052b64
 n

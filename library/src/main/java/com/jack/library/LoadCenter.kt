@@ -47,9 +47,19 @@ object LoadCenter {
      * fragment初始化预加载
      */
     fun loadFragmentPre(fragment:androidx.fragment.app.Fragment){
-
+        _loadObj?.let {
+            val loadFragment = cls?.getDeclaredMethod("loadFragment",androidx.fragment.app.Fragment::class.java)
+            loadFragment?.isAccessible = true
+            loadFragment?.invoke(_loadObj,fragment)
+        }
     }
 
-
+    fun loadFragmentDestroy(fragment:androidx.fragment.app.Fragment){
+        _loadObj?.let {
+            val destroyFragment = cls?.getDeclaredMethod("destroyFragment",androidx.fragment.app.Fragment::class.java)
+            destroyFragment?.isAccessible = true
+            destroyFragment?.invoke(_loadObj,fragment)
+        }
+    }
 
 }

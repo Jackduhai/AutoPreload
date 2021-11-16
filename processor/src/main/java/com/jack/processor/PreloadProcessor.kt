@@ -86,22 +86,25 @@ class PreloadProcessor : AbstractProcessor(){
         f.endControlFlow()
 
         val loadTempCode = CodeBlock.builder()
-        loadTempCode.addStatement("val mainProcess = activity.packageName")
-        loadTempCode.addStatement("var curProcess = %T.getCurrentProcessName(activity)",processUtil)
+        loadTempCode.addStatement("val mainProcess = context.packageName")
+        loadTempCode.addStatement("var curProcess = %T.getCurrentProcessName(context)",processUtil)
         loadTempCode.beginControlFlow("if(!%T.isMultiProcess())",preload)
         loadTempCode.addStatement("curProcess = \"all\"")
         loadTempCode.endControlFlow()
 
         val cleanTempCode = CodeBlock.builder()
-        cleanTempCode.addStatement("val mainProcess = activity.packageName")
-        cleanTempCode.addStatement("var curProcess = %T.getCurrentProcessName(activity)",processUtil)
+        cleanTempCode.addStatement("val mainProcess = context.packageName")
+        cleanTempCode.addStatement("var curProcess = %T.getCurrentProcessName(context)",processUtil)
         cleanTempCode.beginControlFlow("if(!%T.isMultiProcess())",preload)
         cleanTempCode.addStatement("curProcess = \"all\"")
         cleanTempCode.endControlFlow()
 
-        val fLoadActivity = FunSpec.builder("loadActivity").addParameter("activity",activity)
-        val destroyActivity = FunSpec.builder("destroyActivity").addParameter("activity",activity)
-        val fLoadFragment = FunSpec.builder("loadFragment").addParameter("fragment",fragment)
+        val fLoadPublicMethod = FunSpec.builder("loadPublic").addParameter("context",context).addParameter("path",String::class)
+        val destroyPublicMethod = FunSpec.builder("destroyPublic").addParameter("context",context).addParameter("path",String::class)
+        val fLoadActivity = FunSpec.builder("loadActivity").addParameter("context",activity)
+        val destroyActivity = FunSpec.builder("destroyActivity").addParameter("context",activity)
+        val fLoadFragment = FunSpec.builder("loadFragment").addParameter("context",fragment)
+        val destroyFragment = FunSpec.builder("destroyFragment").addParameter("context",fragment)
         val register = FunSpec.builder("register")
 
         val elements = roundEnv!!.getElementsAnnotatedWith(AutoPreload::class.java)!!
@@ -174,7 +177,7 @@ class PreloadProcessor : AbstractProcessor(){
                     } else {
                         if(containssington){
                             loadTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
-                                    "&& activity.javaClass.name == \"${processName.target}\")")
+                                    "&& path == \"${processName.target}\")")
                             loadTempCode.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN " +
                                     ")",threadModel,threadModel)
                             loadTempCode.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
@@ -196,7 +199,7 @@ class PreloadProcessor : AbstractProcessor(){
 
                             if(cleanAnnotation != null){
                                 cleanTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
-                                        "&& activity.javaClass.name == \"${processName.target}\")")
+                                        "&& path == \"${processName.target}\")")
                                 cleanTempCode.beginControlFlow("if(%T.${cleanAnnotation?.threadMode} == %T.BACKGROUND " +
                                         ")",threadModel,threadModel)
                                 cleanTempCode.addStatement("%T.%T(%T.IO)",globalScope,launch,dispatcher)
@@ -233,13 +236,20 @@ class PreloadProcessor : AbstractProcessor(){
             e.printStackTrace()
         }
 
+        createLoadPublicFun(fLoadPublicMethod,loadTempCode)
+        createdestroyPublicFun(destroyPublicMethod,cleanTempCode)
         createLoadActivityFun(fLoadActivity,loadTempCode)
+        createLoadFragmentFun(fLoadFragment,loadTempCode)
         createdestroyActivityFun(destroyActivity,cleanTempCode)
+        createdestroyFragmentFun(destroyFragment,cleanTempCode)
         typeSpec.addFunction(f.build())
         typeSpec.addFunction(fLoadActivity.build())
         typeSpec.addFunction(destroyActivity.build())
         typeSpec.addFunction(fLoadFragment.build())
+        typeSpec.addFunction(destroyFragment.build())
         typeSpec.addFunction(register.build())
+        typeSpec.addFunction(fLoadPublicMethod.build())
+        typeSpec.addFunction(destroyPublicMethod.build())
         return typeSpec
 
     }
@@ -254,8 +264,8 @@ class PreloadProcessor : AbstractProcessor(){
         builder.addStatement("println(\"=====11========\${activity.javaClass.name}============\")")
     }
 
-    fun createLoadActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
-        builder.addStatement("val targetPath = map[activity.javaClass.name]")
+    fun createLoadPublicFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("val targetPath = map[path]")
         builder.beginControlFlow("if(targetPath != null)")
         val codeBlock = CodeBlock.builder()
         codeBlock.add("            val cls = Class.forName(targetPath)\n" +
@@ -264,25 +274,41 @@ class PreloadProcessor : AbstractProcessor(){
                 "            load?.isAccessible = true\n" +
                 "            load?.invoke(obj)\n" +
                 "            val pair = Pair<Any,Class<*>>(obj,cls)\n" +
-                "            mapTempObj[activity.javaClass.name] = pair")
+                "            mapTempObj[path] = pair")
         builder.addCode(codeBlock.build())
         builder.nextControlFlow("else")
         builder.addCode(codeTemp.build())
         builder.endControlFlow()
     }
 
+    fun createLoadActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("loadPublic(context,context.javaClass.name)")
+    }
+
+    fun createLoadFragmentFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("loadPublic(context.requireContext(),context.javaClass.name)")
+    }
+
     fun createdestroyActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
-        builder.addStatement("val targetPath = map[activity.javaClass.name]")
+        builder.addStatement("destroyPublic(context,context.javaClass.name)")
+    }
+
+    fun createdestroyFragmentFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("destroyPublic(context.requireContext(),context.javaClass.name)")
+    }
+
+    fun createdestroyPublicFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("val targetPath = map[path]")
         builder.beginControlFlow("if(targetPath != null)")
         val codeBlock = CodeBlock.builder()
-        codeBlock.add("  val pair = mapTempObj[activity.javaClass.name]\n" +
+        codeBlock.add("  val pair = mapTempObj[path]\n" +
                 "     val cls = pair?.second\n" +
                 "     val obj = pair?.first\n" +
                 "     val cleanMethod = (cls as?\n" +
                 "     Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
                 "     cleanMethod?.isAccessible = true\n" +
                 "     cleanMethod?.invoke(obj)\n" +
-                "     mapTempObj.remove(activity.javaClass.name)")
+                "     mapTempObj.remove(path)")
         builder.addCode(codeBlock.build())
         builder.nextControlFlow("else")
         builder.addCode(codeTemp.build())

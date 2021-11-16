@@ -19,7 +19,12 @@ class FragmentLifecycleAndroidX : FragmentManager.FragmentLifecycleCallbacks() {
 
     override fun onFragmentCreated(fm: FragmentManager, f: Fragment, savedInstanceState: Bundle?) {
         super.onFragmentCreated(fm, f, savedInstanceState)
-        println("==========onFragmentCreated============${f}")
+    }
+
+    override fun onFragmentDestroyed(fm: FragmentManager, f: Fragment) {
+        super.onFragmentDestroyed(fm, f)
+        println("==========onFragmentDestroyed============${f}")
+        LoadCenter.loadFragmentDestroy(f)
     }
 
 }
