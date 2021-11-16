@@ -5,7 +5,7 @@ import com.jack.annotation.CleanMethod
 import com.jack.annotation.LoadMethod
 import com.jack.annotation.ThreadMode
 
-@AutoPreload(process = ":p2",target = "com.jack.autopreload.MainActivity2")
+@AutoPreload(process = ":p2",target = "com.jack.autopreload.MainActivity")
 object LoadNews {
 
     @LoadMethod

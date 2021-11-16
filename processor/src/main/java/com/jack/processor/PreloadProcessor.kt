@@ -172,48 +172,50 @@ class PreloadProcessor : AbstractProcessor(){
                         f.endControlFlow()
                         f.endControlFlow()
                     } else {
-                        loadTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
-                                "&& activity.javaClass.name == \"${processName.target}\")")
-                        loadTempCode.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN " +
-                                ")",threadModel,threadModel)
-                        loadTempCode.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
-                        loadTempCode.beginControlFlow("")
                         if(containssington){
-                            loadTempCode.addStatement("%T.${needsElements[0]}",cls)
-                        } else {
-                            loadTempCode.addStatement("%T().${needsElements[0]}",cls)
-                        }
-                        loadTempCode.endControlFlow()
-                        loadTempCode.nextControlFlow("else")
-                        if(containssington){
-                            loadTempCode.addStatement("%T.${needsElements[0]}",cls)
-                        } else {
-                            loadTempCode.addStatement("%T().${needsElements[0]}",cls)
-                        }
-                        loadTempCode.endControlFlow()
-                        loadTempCode.endControlFlow()
-
-                        if(cleanAnnotation != null){
-                            cleanTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
+                            loadTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
                                     "&& activity.javaClass.name == \"${processName.target}\")")
-                            cleanTempCode.beginControlFlow("if(%T.${cleanAnnotation?.threadMode} == %T.BACKGROUND " +
+                            loadTempCode.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN " +
                                     ")",threadModel,threadModel)
-                            cleanTempCode.addStatement("%T.%T(%T.IO)",globalScope,launch,dispatcher)
-                            cleanTempCode.beginControlFlow("")
+                            loadTempCode.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
+                            loadTempCode.beginControlFlow("")
                             if(containssington){
-                                cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
+                                loadTempCode.addStatement("%T.${needsElements[0]}",cls)
                             } else {
-                                cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                                loadTempCode.addStatement("%T().${needsElements[0]}",cls)
                             }
-                            cleanTempCode.endControlFlow()
-                            cleanTempCode.nextControlFlow("else")
+                            loadTempCode.endControlFlow()
+                            loadTempCode.nextControlFlow("else")
                             if(containssington){
-                                cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
+                                loadTempCode.addStatement("%T.${needsElements[0]}",cls)
                             } else {
-                                cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                                loadTempCode.addStatement("%T().${needsElements[0]}",cls)
                             }
-                            cleanTempCode.endControlFlow()
-                            cleanTempCode.endControlFlow()
+                            loadTempCode.endControlFlow()
+                            loadTempCode.endControlFlow()
+
+                            if(cleanAnnotation != null){
+                                cleanTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
+                                        "&& activity.javaClass.name == \"${processName.target}\")")
+                                cleanTempCode.beginControlFlow("if(%T.${cleanAnnotation?.threadMode} == %T.BACKGROUND " +
+                                        ")",threadModel,threadModel)
+                                cleanTempCode.addStatement("%T.%T(%T.IO)",globalScope,launch,dispatcher)
+                                cleanTempCode.beginControlFlow("")
+                                if(containssington){
+                                    cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
+                                } else {
+                                    cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                                }
+                                cleanTempCode.endControlFlow()
+                                cleanTempCode.nextControlFlow("else")
+                                if(containssington){
+                                    cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
+                                } else {
+                                    cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                                }
+                                cleanTempCode.endControlFlow()
+                                cleanTempCode.endControlFlow()
+                            }
                         }
                     }
                 }
