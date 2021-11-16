@@ -22,23 +22,18 @@ class ActivityLifecycleAuto : Application.ActivityLifecycleCallbacks {
     }
 
     override fun onActivityStarted(activity: Activity) {
-        println("=========onActivityStarted==========${activity}")
     }
 
     override fun onActivityResumed(activity: Activity) {
-        println("=========onActivityResumed==========${activity}")
     }
 
     override fun onActivityPaused(activity: Activity) {
-        println("=========onActivityPaused==========${activity}")
     }
 
     override fun onActivityStopped(activity: Activity) {
-        println("=========onActivityStopped==========${activity}")
     }
 
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
-        println("=========onActivitySaveInstanceState==========${activity}")
     }
 
     override fun onActivityDestroyed(activity: Activity) {

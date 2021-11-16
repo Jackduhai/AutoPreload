@@ -85,6 +85,13 @@ class PreloadProcessor : AbstractProcessor(){
         f.addStatement("curProcess = \"all\"")
         f.endControlFlow()
 
+        val loadTempCode = CodeBlock.builder()
+        loadTempCode.addStatement("val mainProcess = activity.packageName")
+        loadTempCode.addStatement("var curProcess = %T.getCurrentProcessName(activity)",processUtil)
+        loadTempCode.beginControlFlow("if(!%T.isMultiProcess())",preload)
+        loadTempCode.addStatement("curProcess = \"all\"")
+        loadTempCode.endControlFlow()
+
         val fLoadActivity = FunSpec.builder("loadActivity").addParameter("activity",activity)
         val destroyActivity = FunSpec.builder("destroyActivity").addParameter("activity",activity)
         val fLoadFragment = FunSpec.builder("loadFragment").addParameter("fragment",fragment)
@@ -128,27 +135,49 @@ class PreloadProcessor : AbstractProcessor(){
                         processName.process
                     }
 
-                    f.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
-                    f.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN)",threadModel,threadModel)
-                    f.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
-                    f.beginControlFlow("")
-                    if(containssington){
-                        f.addStatement("%T.${needsElements[0]}",cls)
+                    if(processName.target == "application"){
+                        f.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
+                        f.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN)",threadModel,threadModel)
+                        f.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
+                        f.beginControlFlow("")
+                        if(containssington){
+                            f.addStatement("%T.${needsElements[0]}",cls)
+                        } else {
+                            f.addStatement("%T().${needsElements[0]}",cls)
+                        }
+                        f.endControlFlow()
+                        f.nextControlFlow("else")
+                        if(containssington){
+                            f.addStatement("%T.${needsElements[0]}",cls)
+                        } else {
+                            f.addStatement("%T().${needsElements[0]}",cls)
+                        }
+                        f.endControlFlow()
+                        f.endControlFlow()
                     } else {
-                        f.addStatement("%T().${needsElements[0]}",cls)
+                        loadTempCode.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
+                        loadTempCode.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN " +
+                                "&& targetPath == \"${cls}\")",threadModel,threadModel)
+                        loadTempCode.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
+                        loadTempCode.beginControlFlow("")
+                        if(containssington){
+                            loadTempCode.addStatement("%T.${needsElements[0]}",cls)
+                        } else {
+                            loadTempCode.addStatement("%T().${needsElements[0]}",cls)
+                        }
+                        loadTempCode.endControlFlow()
+                        loadTempCode.nextControlFlow("else")
+                        if(containssington){
+                            loadTempCode.addStatement("%T.${needsElements[0]}",cls)
+                        } else {
+                            loadTempCode.addStatement("%T().${needsElements[0]}",cls)
+                        }
+                        loadTempCode.endControlFlow()
+                        loadTempCode.endControlFlow()
                     }
-                    f.endControlFlow()
-                    f.nextControlFlow("else")
-                    if(containssington){
-                        f.addStatement("%T.${needsElements[0]}",cls)
-                    } else {
-                        f.addStatement("%T().${needsElements[0]}",cls)
-                    }
-                    f.endControlFlow()
-                    f.endControlFlow()
 
-                    //register
-                    if (processName.target != "application") {
+                    //register 目标不是application且不是单例时启动时则注册到map中
+                    if (processName.target != "application" && !containssington) {
                         register.addStatement(" map[\"${processName.target}\"] = \"${cls.reflectionName()}\"")
 
                         register.addStatement(" mapFunctionLoad[\"${cls.reflectionName()}\"] = \"${needsElements[0].simpleName}\"")
@@ -161,7 +190,8 @@ class PreloadProcessor : AbstractProcessor(){
             e.printStackTrace()
         }
 
-        createLoadActivityFun(fLoadActivity)
+        createLoadActivityFun(fLoadActivity,loadTempCode)
+        createdestroyActivityFun(destroyActivity)
         typeSpec.addFunction(f.build())
         typeSpec.addFunction(fLoadActivity.build())
         typeSpec.addFunction(destroyActivity.build())
@@ -181,18 +211,34 @@ class PreloadProcessor : AbstractProcessor(){
         builder.addStatement("println(\"=====11========\${activity.javaClass.name}============\")")
     }
 
-    fun createLoadActivityFun(builder: FunSpec.Builder){
+    fun createLoadActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("val targetPath = map[activity.javaClass.name]")
+        builder.beginControlFlow("if(targetPath != null)")
         val codeBlock = CodeBlock.builder()
-        codeBlock.addStatement("  val targetPath = map[activity.javaClass.name]\n" +
-                "        targetPath?.let {\n" +
-                "        val cls = Class.forName(it)\n" +
-                "        val obj = cls?.getConstructor()?.newInstance()!!\n" +
-                "        val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
-                "        load?.isAccessible = true\n" +
-                "        load?.invoke(obj)\n" +
-                "        val pair = Pair<Any,Any>(obj,cls)\n" +
-                "         mapTempObj[activity.javaClass.name] = pair\n" +
-                " }")
+        codeBlock.add("            val cls = Class.forName(targetPath)\n" +
+                "            val obj = cls?.getConstructor()?.newInstance()!!\n" +
+                "            val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
+                "            load?.isAccessible = true\n" +
+                "            load?.invoke(obj)\n" +
+                "            val pair = Pair<Any,Class<*>>(obj,cls)\n" +
+                "            mapTempObj[activity.javaClass.name] = pair")
+        builder.addCode(codeBlock.build())
+        builder.nextControlFlow("else")
+        builder.addCode(codeTemp.build())
+        builder.endControlFlow()
+//        builder.addCode(codeBlock.build())
+    }
+
+    fun createdestroyActivityFun(builder: FunSpec.Builder){
+        val codeBlock = CodeBlock.builder()
+        codeBlock.addStatement("        val targetPath = map[activity.javaClass.name]\n" +
+                "        val pair = mapTempObj[activity.javaClass.name]\n" +
+                "        val cls = pair?.second\n" +
+                "        val obj = pair?.first\n" +
+                "        val cleanMethod = (cls as? Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
+                "        cleanMethod?.isAccessible = true\n" +
+                "        cleanMethod?.invoke(obj)\n" +
+                "        mapTempObj.remove(activity.javaClass.name)")
         builder.addCode(codeBlock.build())
     }
 

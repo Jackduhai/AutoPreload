@@ -5,7 +5,7 @@ import com.jack.annotation.CleanMethod;
 import com.jack.annotation.LoadMethod;
 import com.jack.annotation.ThreadMode;
 
-@AutoPreload(target = "com.jack.autopreload.MainActivity")
+@AutoPreload//(target = "com.jack.autopreload.MainActivity")
 public class Load2 {
     @LoadMethod(threadMode = ThreadMode.MAIN)
     public void loadMyMessagePre2(){
