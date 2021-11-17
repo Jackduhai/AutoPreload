@@ -12,4 +12,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 public @interface AutoPreload {
     String process() default "main";//如果支持多进程 不配置就默认主进程才初始化
+    String target() default  "application";//设置目标类加载时才进行预加载调用 主要是针对activity和fragment
 }

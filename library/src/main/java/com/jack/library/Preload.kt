@@ -16,8 +16,9 @@ object Preload {
     private var mutiprocess : Boolean = false
 
     fun init(application: Application){
+        println("===Preload===init======${ProcessUtil.getCurrentProcessName(application)}")
+        application.registerActivityLifecycleCallbacks(ActivityLifecycleAuto())
         GlobalScope.launch(Dispatchers.IO){
-            println("===Preload===init======${ProcessUtil.getCurrentProcessName(application)}")
             AppInitWorker(application).doWork()
         }
     }

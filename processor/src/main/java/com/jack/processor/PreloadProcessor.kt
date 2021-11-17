@@ -2,12 +2,14 @@ package com.jack.processor
 
 import com.google.auto.service.AutoService
 import com.jack.annotation.AutoPreload
+import com.jack.annotation.CleanMethod
 import com.jack.annotation.Const.Companion.AUTO_CODE_PACKAGE
 import com.jack.annotation.Const.Companion.LOAD_CLASS
 import com.jack.annotation.InvokeBase
 import com.jack.annotation.LoadMethod
 import com.jack.processor.util.PrivateMethodException
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.lang.Exception
 import javax.annotation.processing.*
 import javax.lang.model.SourceVersion
@@ -30,6 +32,8 @@ class PreloadProcessor : AbstractProcessor(){
     val dispatcher = ClassName("kotlinx.coroutines", "Dispatchers")
     val globalScope = ClassName("kotlinx.coroutines", "GlobalScope")
     val launch = ClassName("kotlinx.coroutines", "launch")
+    val activity = ClassName("android.app", "Activity")
+    val fragment = ClassName("androidx.fragment.app", "Fragment")
 
     override fun init(processingEnv: ProcessingEnvironment) {
         super.init(processingEnv)
@@ -56,26 +60,67 @@ class PreloadProcessor : AbstractProcessor(){
     fun createFun(annotations: MutableSet<out TypeElement>?,roundEnv: RoundEnvironment?):TypeSpec.Builder{
         val typeSpec = TypeSpec.classBuilder(LOAD_CLASS)
 //            .addSuperinterface(InvokeBase::class)
+        //保存非单例对象类路径
+        typeSpec.addProperty(PropertySpec.builder("map",LinkedHashMap::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName()),KModifier.PRIVATE)
+            .initializer("LinkedHashMap<String,String>()").build())
+        //保存非单例对象的调用方法
+        typeSpec.addProperty(PropertySpec.builder("mapFunctionLoad",LinkedHashMap::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName()),KModifier.PRIVATE)
+            .initializer("LinkedHashMap<String,String>()").build())
+        //保存非单例对象的资源清理方法
+        typeSpec.addProperty(PropertySpec.builder("mapFunctionClean",LinkedHashMap::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName()),KModifier.PRIVATE)
+            .initializer("LinkedHashMap<String,String>()").build())
+        typeSpec.addProperty(PropertySpec.builder("mapTempObj",LinkedHashMap::class.asClassName()
+                .parameterizedBy(String::class.asClassName(),Pair::class.asClassName()
+                    .parameterizedBy(Any::class.asClassName(),Any::class.asClassName())),KModifier.PRIVATE)
+                .initializer("LinkedHashMap<String,Pair<Any,Any>>()").build())
+        //保存类和方法运行的线程相关信息
+        typeSpec.addProperty(PropertySpec.builder("mapThreadInfo",LinkedHashMap::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName())
+            ,KModifier.PRIVATE)
+            .initializer("LinkedHashMap<String,String>()").build())
 
-        val f = FunSpec.builder("load")//.addModifiers(KModifier.OVERRIDE)
-            .addParameter("applicationContext",context)
+        val f = FunSpec.builder("load").addParameter("applicationContext",context)
+        f.addStatement("register()")
         f.addStatement("val mainProcess = applicationContext.packageName")
         f.addStatement("var curProcess = %T.getCurrentProcessName(applicationContext)",processUtil)
         f.beginControlFlow("if(!%T.isMultiProcess())",preload)
         f.addStatement("curProcess = \"all\"")
         f.endControlFlow()
-        val codeBlock = CodeBlock.builder()
+
+        val loadTempCode = CodeBlock.builder()
+
+        val cleanTempCode = CodeBlock.builder()
+        cleanTempCode.addStatement("val mainProcess = context.packageName")
+        cleanTempCode.addStatement("var curProcess = %T.getCurrentProcessName(context)",processUtil)
+        cleanTempCode.beginControlFlow("if(!%T.isMultiProcess())",preload)
+        cleanTempCode.addStatement("curProcess = \"all\"")
+        cleanTempCode.endControlFlow()
+
+        val fLoadPublicMethod = FunSpec.builder("loadPublic").addModifiers(KModifier.PRIVATE)
+            .addParameter("context",context).addParameter("path",String::class)
+        val destroyPublicMethod = FunSpec.builder("destroyPublic").addModifiers(KModifier.PRIVATE)
+            .addParameter("context",context).addParameter("path",String::class)
+        val fLoadActivity = FunSpec.builder("loadActivity").addParameter("context",activity)
+        val destroyActivity = FunSpec.builder("destroyActivity").addParameter("context",activity)
+        val fLoadFragment = FunSpec.builder("loadFragment").addParameter("context",fragment)
+        val destroyFragment = FunSpec.builder("destroyFragment").addParameter("context",fragment)
+        val register = FunSpec.builder("register")
+
         val elements = roundEnv!!.getElementsAnnotatedWith(AutoPreload::class.java)!!
         //获取注解对应的运行进程名称
         try {
             elements.forEach {annotatedElement->
-
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
+                val cleanElements = annotatedElement.childElementsAnnotatedWith(CleanMethod::class.java)
                 val processName = annotatedElement.getAnnotation(AutoPreload::class.java)
-                println("11=====${processName.process}=====${annotatedElement.simpleName}  " +
+                println("00=====${processName.process}=====${annotatedElement.simpleName}  " +
                         "${annotatedElement.enclosedElements}")
                 var containssington = false
                 var invokeMethod : Element? = null
+                var cleanMethod : Element? = null
                 run outside@{
                     annotatedElement.enclosedElements.forEach {
                         containssington = it.simpleName.toString() == "INSTANCE"
@@ -92,42 +137,218 @@ class PreloadProcessor : AbstractProcessor(){
                     }
                 }
 
-                println("00==containssington:${containssington}==========needsElements:${needsElements}=======")
+                cleanElements.forEach {
+                    if(!it.modifiers.contains(Modifier.PRIVATE)){
+                        cleanMethod = it
+                    } else {
+                        throw PrivateMethodException(it, CleanMethod::class.java)
+                    }
+                }
+
+                println("11==containssington:${containssington}==========needsElements:${needsElements}=======")
                 val cls = ClassName(annotatedElement.enclosingElement.toString(),annotatedElement.simpleName.toString())
-                invokeMethod?.let {
+                if(invokeMethod != null){
                     //获取方法对应的注解值
-                    val methodAnnotation = it.getAnnotation(LoadMethod::class.java)
+                    val methodAnnotation = invokeMethod!!.getAnnotation(LoadMethod::class.java)
+                    val cleanAnnotation = cleanMethod?.getAnnotation(CleanMethod::class.java)
                     val pName = if(processName.process == "main"){
                         ""
                     } else {
                         processName.process
                     }
-                    f.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
-                    f.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN)",threadModel,threadModel)
-                    f.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
-                    f.beginControlFlow("")
-                    if(containssington){
-                        f.addStatement("%T.${needsElements[0]}",cls)
+
+                    if(processName.target == "application"){
+                        f.beginControlFlow("if(\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\")")
+                        f.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN)",threadModel,threadModel)
+                        f.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
+                        f.beginControlFlow("")
+                        if(containssington){
+                            f.addStatement("%T.${needsElements[0]}",cls)
+                        } else {
+                            f.addStatement("%T().${needsElements[0]}",cls)
+                        }
+                        f.endControlFlow()
+                        f.nextControlFlow("else")
+                        if(containssington){
+                            f.addStatement("%T.${needsElements[0]}",cls)
+                        } else {
+                            f.addStatement("%T().${needsElements[0]}",cls)
+                        }
+                        f.endControlFlow()
+                        f.endControlFlow()
                     } else {
-                        f.addStatement("%T().${needsElements[0]}",cls)
+                        if(containssington){
+                            loadTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
+                                    "&& path == \"${processName.target}\")")
+                            loadTempCode.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN " +
+                                    ")",threadModel,threadModel)
+                            loadTempCode.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
+                            loadTempCode.beginControlFlow("")
+                            if(containssington){
+                                loadTempCode.addStatement("%T.${needsElements[0]}",cls)
+                            } else {
+                                loadTempCode.addStatement("%T().${needsElements[0]}",cls)
+                            }
+                            loadTempCode.endControlFlow()
+                            loadTempCode.nextControlFlow("else")
+                            if(containssington){
+                                loadTempCode.addStatement("%T.${needsElements[0]}",cls)
+                            } else {
+                                loadTempCode.addStatement("%T().${needsElements[0]}",cls)
+                            }
+                            loadTempCode.endControlFlow()
+                            loadTempCode.endControlFlow()
+
+                            if(cleanAnnotation != null){
+                                cleanTempCode.beginControlFlow("if((\"\${mainProcess}${pName}\" == curProcess || curProcess == \"all\") " +
+                                        "&& path == \"${processName.target}\")")
+                                cleanTempCode.beginControlFlow("if(%T.${cleanAnnotation?.threadMode} == %T.BACKGROUND " +
+                                        ")",threadModel,threadModel)
+                                cleanTempCode.addStatement("%T.%T(%T.IO)",globalScope,launch,dispatcher)
+                                cleanTempCode.beginControlFlow("")
+                                if(containssington){
+                                    cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
+                                } else {
+                                    cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                                }
+                                cleanTempCode.endControlFlow()
+                                cleanTempCode.nextControlFlow("else")
+                                if(containssington){
+                                    cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
+                                } else {
+                                    cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                                }
+                                cleanTempCode.endControlFlow()
+                                cleanTempCode.endControlFlow()
+                            }
+                        }
                     }
-                    f.endControlFlow()
-                    f.nextControlFlow("else")
-                    if(containssington){
-                        f.addStatement("%T.${needsElements[0]}",cls)
-                    } else {
-                        f.addStatement("%T().${needsElements[0]}",cls)
-                    }
-                    f.endControlFlow()
-                    f.endControlFlow()
+                    register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}\"] = \"${pName}\"")
+                    register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}.${needsElements[0].simpleName}\"] = \"${methodAnnotation?.threadMode}\"")
+                    register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}.${cleanElements[0].simpleName}\"] = \"${cleanAnnotation?.threadMode}\"")
+                }
+
+                //register 目标不是application且不是单例时启动时则注册到map中
+                if (processName.target != "application" && !containssington) {
+                    register.addStatement(" map[\"${processName.target}\"] = \"${cls.reflectionName()}\"")
+
+                    register.addStatement(" mapFunctionLoad[\"${cls.reflectionName()}\"] = \"${needsElements[0].simpleName}\"")
+
+                    register.addStatement(" mapFunctionClean[\"${cls.reflectionName()}\"] = \"${cleanElements[0].simpleName}\"")
                 }
             }
         }catch (e : Exception){
             e.printStackTrace()
         }
+
+        createLoadPublicFun(fLoadPublicMethod,loadTempCode)
+        createdestroyPublicFun(destroyPublicMethod,cleanTempCode)
+        createLoadActivityFun(fLoadActivity,loadTempCode)
+        createLoadFragmentFun(fLoadFragment,loadTempCode)
+        createdestroyActivityFun(destroyActivity,cleanTempCode)
+        createdestroyFragmentFun(destroyFragment,cleanTempCode)
         typeSpec.addFunction(f.build())
+        typeSpec.addFunction(fLoadActivity.build())
+        typeSpec.addFunction(destroyActivity.build())
+        typeSpec.addFunction(fLoadFragment.build())
+        typeSpec.addFunction(destroyFragment.build())
+        typeSpec.addFunction(register.build())
+        typeSpec.addFunction(fLoadPublicMethod.build())
+        typeSpec.addFunction(destroyPublicMethod.build())
         return typeSpec
 
+    }
+
+    private fun createRegisterFun(processName: AutoPreload,register: FunSpec.Builder,cls: ClassName) {
+        if (processName.target != "application") {
+            register.addStatement(" map[\"${processName.target}\"] = \"${cls.reflectionName()}\"")
+        }
+    }
+
+    fun createRegisterFun(builder: FunSpec.Builder){
+        builder.addStatement("println(\"=====11========\${activity.javaClass.name}============\")")
+    }
+
+    fun createLoadPublicFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("val mainProcess = context.packageName")
+        builder.addStatement("var curProcess = %T.getCurrentProcessName(context)",processUtil)
+        builder.beginControlFlow("if(!%T.isMultiProcess())",preload)
+        builder.addStatement("curProcess = \"all\"")
+        builder.endControlFlow()
+        builder.addStatement("val targetPath = map[path]")
+        builder.beginControlFlow("if(targetPath != null)")
+        val codeBlock = CodeBlock.builder()
+        codeBlock.add("if (\"\${mainProcess}\${mapThreadInfo[targetPath]}\" != curProcess && curProcess != \"all\") {\n" +
+                "                return\n" +
+                "            }\n" +
+                "            val cls = Class.forName(targetPath)\n" +
+                "            val obj = cls?.getConstructor()?.newInstance()!!\n" +
+                "            val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
+                "            load?.isAccessible = true\n" +
+                "            val threadInfo = mapThreadInfo[\"\${targetPath}.\${mapFunctionLoad[targetPath]}\"]\n" +
+                "            if (threadInfo == \"BACKGROUND\") {\n" +
+                "                GlobalScope.launch(Dispatchers.IO)\n" +
+                "                {\n" +
+                "                    load?.invoke(obj)\n" +
+                "                }\n" +
+                "            } else {\n" +
+                "                GlobalScope.launch(Dispatchers.Main)\n" +
+                "                {\n" +
+                "                    load?.invoke(obj)\n" +
+                "                }\n" +
+                "            }\n" +
+                "            val pair = Pair<Any, Class<*>>(obj, cls)\n" +
+                "            mapTempObj[path] = pair")
+        builder.addCode(codeBlock.build())
+        builder.nextControlFlow("else")
+        builder.addCode(codeTemp.build())
+        builder.endControlFlow()
+    }
+
+    fun createLoadActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("loadPublic(context,context.javaClass.name)")
+    }
+
+    fun createLoadFragmentFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("loadPublic(context.requireContext(),context.javaClass.name)")
+    }
+
+    fun createdestroyActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("destroyPublic(context,context.javaClass.name)")
+    }
+
+    fun createdestroyFragmentFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("destroyPublic(context.requireContext(),context.javaClass.name)")
+    }
+
+    fun createdestroyPublicFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
+        builder.addStatement("val targetPath = map[path]")
+        builder.beginControlFlow("if(targetPath != null)")
+        val codeBlock = CodeBlock.builder()
+        codeBlock.add("val pair = mapTempObj[path]\n" +
+                "            val cls = pair?.second\n" +
+                "            val obj = pair?.first\n" +
+                "            val cleanMethod = (cls as?\n" +
+                "                    Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
+                "            cleanMethod?.isAccessible = true\n" +
+                "            val threadInfo =\n" +
+                "                mapThreadInfo[\"\${targetPath}.\${mapFunctionClean[targetPath]}\"]\n" +
+                "            if (threadInfo == \"BACKGROUND\") {\n" +
+                "                GlobalScope.launch(Dispatchers.IO)\n" +
+                "                {\n" +
+                "                    cleanMethod?.invoke(obj)\n" +
+                "                }\n" +
+                "            } else {\n" +
+                "                GlobalScope.launch(Dispatchers.Main)\n" +
+                "                {\n" +
+                "                    cleanMethod?.invoke(obj)\n" +
+                "                }\n" +
+                "            }\n" +
+                "            mapTempObj.remove(path)")
+        builder.addCode(codeBlock.build())
+        builder.nextControlFlow("else")
+        builder.addCode(codeTemp.build())
+        builder.endControlFlow()
     }
 
     fun createFileBuilder(): FileSpec.Builder {
