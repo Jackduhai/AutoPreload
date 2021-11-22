@@ -6,7 +6,7 @@ import com.jack.annotation.*
 @AutoPreload(target = "com.jack.autopreload.SettingsFragment",process = ":p2")
 class LoadFragment {
 
-    @TargetInject
+//    @TargetInject
     public var fragment : Fragment? = null
 
     @LoadMethod(threadMode = ThreadMode.BACKGROUND)

@@ -289,19 +289,22 @@ class PreloadProcessor : AbstractProcessor(){
                 "            val obj = cls?.getConstructor()?.newInstance()!!\n" +
                 "            val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
                 "            load?.isAccessible = true\n" +
-                "            val context = cls?.getDeclaredField(mapTargetInject[targetPath])\n" +
-                "            context?.isAccessible = true\n" +
+                "            var feid : java.lang.reflect.Field? = null\n" +
+                "                        if(mapTargetInject[targetPath]?.isNotEmpty() == true){\n" +
+                "                            feid = cls?.getDeclaredField(mapTargetInject[targetPath])\n" +
+                "                        }\n" +
+                "            feid?.isAccessible = true\n" +
                 "            val threadInfo = mapThreadInfo[\"\${targetPath}.\${mapFunctionLoad[targetPath]}\"]\n" +
                 "            if (threadInfo == \"BACKGROUND\") {\n" +
                 "                GlobalScope.launch(Dispatchers.IO)\n" +
                 "                {\n" +
-                "                    context.set(obj,content)\n"+
+                "                    feid?.set(obj,content)\n"+
                 "                    load?.invoke(obj)\n" +
                 "                }\n" +
                 "            } else {\n" +
                 "                GlobalScope.launch(Dispatchers.Main)\n" +
                 "                {\n" +
-                "                    context.set(obj,content)\n"+
+                "                    feid?.set(obj,content)\n"+
                 "                    load?.invoke(obj)\n" +
                 "                }\n" +
                 "            }\n" +
@@ -339,7 +342,10 @@ class PreloadProcessor : AbstractProcessor(){
                 "            val cleanMethod = (cls as?\n" +
                 "                    Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
                 "            cleanMethod?.isAccessible = true\n" +
-                "            val feid = (cls as? Class<*>)?.getDeclaredField(mapTargetInject[targetPath])\n" +
+                "            var feid : java.lang.reflect.Field? = null\n" +
+                "            if(mapTargetInject[targetPath]?.isNotEmpty() == true){\n" +
+                "               feid = (cls as? Class<*>)?.getDeclaredField(mapTargetInject[targetPath])\n" +
+                "            }\n" +
                 "            feid?.isAccessible = true\n" +
                 "            val threadInfo =\n" +
                 "                mapThreadInfo[\"\${targetPath}.\${mapFunctionClean[targetPath]}\"]\n" +
