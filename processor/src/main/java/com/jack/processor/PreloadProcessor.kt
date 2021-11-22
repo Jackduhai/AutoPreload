@@ -1,20 +1,17 @@
 package com.jack.processor
 
 import com.google.auto.service.AutoService
-import com.jack.annotation.AutoPreload
-import com.jack.annotation.CleanMethod
+import com.jack.annotation.*
 import com.jack.annotation.Const.Companion.AUTO_CODE_PACKAGE
 import com.jack.annotation.Const.Companion.LOAD_CLASS
-import com.jack.annotation.InvokeBase
-import com.jack.annotation.LoadMethod
 import com.jack.processor.util.PrivateMethodException
+import com.jack.processor.util.childElementsAnnotatedWith
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.lang.Exception
 import javax.annotation.processing.*
 import javax.lang.model.SourceVersion
 import javax.lang.model.element.*
-import javax.tools.Diagnostic
 import kotlin.io.path.Path
 import kotlin.properties.Delegates
 
@@ -81,6 +78,11 @@ class PreloadProcessor : AbstractProcessor(){
             .parameterizedBy(String::class.asClassName(),String::class.asClassName())
             ,KModifier.PRIVATE)
             .initializer("LinkedHashMap<String,String>()").build())
+        //保存依赖注入的目标类
+        typeSpec.addProperty(PropertySpec.builder("mapTargetInject",LinkedHashMap::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName())
+            ,KModifier.PRIVATE)
+            .initializer("LinkedHashMap<String,String>()").build())
 
         val f = FunSpec.builder("load").addParameter("applicationContext",context)
         f.addStatement("register()")
@@ -101,6 +103,7 @@ class PreloadProcessor : AbstractProcessor(){
 
         val fLoadPublicMethod = FunSpec.builder("loadPublic").addModifiers(KModifier.PRIVATE)
             .addParameter("context",context).addParameter("path",String::class)
+            .addParameter("content",Any::class)
         val destroyPublicMethod = FunSpec.builder("destroyPublic").addModifiers(KModifier.PRIVATE)
             .addParameter("context",context).addParameter("path",String::class)
         val fLoadActivity = FunSpec.builder("loadActivity").addParameter("context",activity)
@@ -115,6 +118,7 @@ class PreloadProcessor : AbstractProcessor(){
             elements.forEach {annotatedElement->
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
                 val cleanElements = annotatedElement.childElementsAnnotatedWith(CleanMethod::class.java)
+                val targetInjectElements = annotatedElement.childElementsAnnotatedWith(TargetInject::class.java)
                 val processName = annotatedElement.getAnnotation(AutoPreload::class.java)
                 println("00=====${processName.process}=====${annotatedElement.simpleName}  " +
                         "${annotatedElement.enclosedElements}")
@@ -184,18 +188,21 @@ class PreloadProcessor : AbstractProcessor(){
                                     ")",threadModel,threadModel)
                             loadTempCode.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
                             loadTempCode.beginControlFlow("")
-                            if(containssington){
-                                loadTempCode.addStatement("%T.${needsElements[0]}",cls)
+                            val suffix = if(containssington){
+                                ""
                             } else {
-                                loadTempCode.addStatement("%T().${needsElements[0]}",cls)
+                                "()"
                             }
+                            if(targetInjectElements.isNotEmpty()){
+                                loadTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = content as ${targetInjectElements[0].asType()}",cls)
+                            }
+                            loadTempCode.addStatement("%T${suffix}.${needsElements[0]}",cls)
                             loadTempCode.endControlFlow()
                             loadTempCode.nextControlFlow("else")
-                            if(containssington){
-                                loadTempCode.addStatement("%T.${needsElements[0]}",cls)
-                            } else {
-                                loadTempCode.addStatement("%T().${needsElements[0]}",cls)
+                            if(targetInjectElements.isNotEmpty()){
+                                loadTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = content as ${targetInjectElements[0].asType()}",cls)
                             }
+                            loadTempCode.addStatement("%T${suffix}.${needsElements[0]}",cls)
                             loadTempCode.endControlFlow()
                             loadTempCode.endControlFlow()
 
@@ -206,18 +213,16 @@ class PreloadProcessor : AbstractProcessor(){
                                         ")",threadModel,threadModel)
                                 cleanTempCode.addStatement("%T.%T(%T.IO)",globalScope,launch,dispatcher)
                                 cleanTempCode.beginControlFlow("")
-                                if(containssington){
-                                    cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
-                                } else {
-                                    cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                                if(targetInjectElements.isNotEmpty()){
+                                    cleanTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = null",cls)
                                 }
+                                cleanTempCode.addStatement("%T${suffix}.${cleanElements[0]}",cls)
                                 cleanTempCode.endControlFlow()
                                 cleanTempCode.nextControlFlow("else")
-                                if(containssington){
-                                    cleanTempCode.addStatement("%T.${cleanElements[0]}",cls)
-                                } else {
-                                    cleanTempCode.addStatement("%T().${cleanElements[0]}",cls)
+                                if(targetInjectElements.isNotEmpty()){
+                                    cleanTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = null",cls)
                                 }
+                                cleanTempCode.addStatement("%T${suffix}.${cleanElements[0]}",cls)
                                 cleanTempCode.endControlFlow()
                                 cleanTempCode.endControlFlow()
                             }
@@ -235,6 +240,9 @@ class PreloadProcessor : AbstractProcessor(){
                     register.addStatement(" mapFunctionLoad[\"${cls.reflectionName()}\"] = \"${needsElements[0].simpleName}\"")
 
                     register.addStatement(" mapFunctionClean[\"${cls.reflectionName()}\"] = \"${cleanElements[0].simpleName}\"")
+                }
+                if(targetInjectElements.isNotEmpty()){
+                    register.addStatement(" mapTargetInject[\"${cls.reflectionName()}\"] = \"${targetInjectElements[0]}\"")//|${targetInjectElements[0].asType()
                 }
             }
         }catch (e : Exception){
@@ -285,15 +293,22 @@ class PreloadProcessor : AbstractProcessor(){
                 "            val obj = cls?.getConstructor()?.newInstance()!!\n" +
                 "            val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
                 "            load?.isAccessible = true\n" +
+                "            var feid : java.lang.reflect.Field? = null\n" +
+                "                        if(mapTargetInject[targetPath]?.isNotEmpty() == true){\n" +
+                "                            feid = cls?.getDeclaredField(mapTargetInject[targetPath])\n" +
+                "                        }\n" +
+                "            feid?.isAccessible = true\n" +
                 "            val threadInfo = mapThreadInfo[\"\${targetPath}.\${mapFunctionLoad[targetPath]}\"]\n" +
                 "            if (threadInfo == \"BACKGROUND\") {\n" +
                 "                GlobalScope.launch(Dispatchers.IO)\n" +
                 "                {\n" +
+                "                    feid?.set(obj,content)\n"+
                 "                    load?.invoke(obj)\n" +
                 "                }\n" +
                 "            } else {\n" +
                 "                GlobalScope.launch(Dispatchers.Main)\n" +
                 "                {\n" +
+                "                    feid?.set(obj,content)\n"+
                 "                    load?.invoke(obj)\n" +
                 "                }\n" +
                 "            }\n" +
@@ -306,11 +321,11 @@ class PreloadProcessor : AbstractProcessor(){
     }
 
     fun createLoadActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
-        builder.addStatement("loadPublic(context,context.javaClass.name)")
+        builder.addStatement("loadPublic(context,context.javaClass.name,context)")
     }
 
     fun createLoadFragmentFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
-        builder.addStatement("loadPublic(context.requireContext(),context.javaClass.name)")
+        builder.addStatement("loadPublic(context.requireContext(),context.javaClass.name,context)")
     }
 
     fun createdestroyActivityFun(builder: FunSpec.Builder,codeTemp:CodeBlock.Builder){
@@ -331,16 +346,23 @@ class PreloadProcessor : AbstractProcessor(){
                 "            val cleanMethod = (cls as?\n" +
                 "                    Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
                 "            cleanMethod?.isAccessible = true\n" +
+                "            var feid : java.lang.reflect.Field? = null\n" +
+                "            if(mapTargetInject[targetPath]?.isNotEmpty() == true){\n" +
+                "               feid = (cls as? Class<*>)?.getDeclaredField(mapTargetInject[targetPath])\n" +
+                "            }\n" +
+                "            feid?.isAccessible = true\n" +
                 "            val threadInfo =\n" +
                 "                mapThreadInfo[\"\${targetPath}.\${mapFunctionClean[targetPath]}\"]\n" +
                 "            if (threadInfo == \"BACKGROUND\") {\n" +
                 "                GlobalScope.launch(Dispatchers.IO)\n" +
                 "                {\n" +
+                "                    feid?.set(obj,null)\n"+
                 "                    cleanMethod?.invoke(obj)\n" +
                 "                }\n" +
                 "            } else {\n" +
                 "                GlobalScope.launch(Dispatchers.Main)\n" +
                 "                {\n" +
+                "                    feid?.set(obj,null)\n"+
                 "                    cleanMethod?.invoke(obj)\n" +
                 "                }\n" +
                 "            }\n" +

@@ -1,4 +1,4 @@
-package com.jack.processor
+package com.jack.processor.util
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
@@ -69,11 +69,11 @@ fun VariableElement.asPreparedType(): TypeName =
 /**
  * Returns a list of enclosed elements annotated with the provided Annotations.
  */
-fun <A : Annotation> Element.childElementsAnnotatedWith(annotationClass: Class<A>): List<ExecutableElement> =
+fun <A : Annotation> Element.childElementsAnnotatedWith(annotationClass: Class<A>): List<Element> =
         this.enclosedElements
                 .asSequence()
                 .filter { it.hasAnnotation(annotationClass) }
-                .map { it as ExecutableElement }
+//                .map { it as ExecutableElement }
                 .toList()
 
 fun FileSpec.Builder.addProperties(properties: List<PropertySpec>): FileSpec.Builder {

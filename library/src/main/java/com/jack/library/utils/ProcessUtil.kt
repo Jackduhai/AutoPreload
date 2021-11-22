@@ -62,7 +62,7 @@ class ProcessUtil {
                     Application::class.java.getClassLoader()
                 )
                     .getDeclaredMethod("currentProcessName", *arrayOfNulls<Class<*>?>(0))
-                declaredMethod.setAccessible(true)
+                declaredMethod.isAccessible = true
                 val invoke: Any = declaredMethod.invoke(null, arrayOfNulls<Any>(0))
                 if (invoke is String) {
                     processName = invoke

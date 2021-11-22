@@ -4,8 +4,8 @@
         maven { url 'https://jitpack.io' }
     }
 
-    kapt "com.github.Jackduhai.AutoPreload:processor:1.0.1.14"
-    implementation 'com.github.Jackduhai.AutoPreload:autopreload:1.0.1.14'
+    kapt "com.github.Jackduhai.AutoPreload:processor:1.0.1.16"
+    implementation 'com.github.Jackduhai.AutoPreload:autopreload:1.0.1.16'
 
     //需要导入kotlin协程包
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2'
@@ -41,6 +41,9 @@
  @AutoPreload(process = ":p2",target = "com.jack.autopreload.MainActivity")//target是需要绑定的fragment或activity全路径
  object LoadNews {
 
+    @TargetInject                       //自动注入 此注解会自动注入target对应的组件对象，会自动进行维护不需要手动维护，当生命周期结束时会自动null
+    public var context: AppCompatActivity? = null
+
      @LoadMethod(threadMode = ThreadMode.MAIN)  //生命周期开始时会自动调用loadMethod注解的方法 同样可以对线程类型进行声明
      fun loadMyMessagePre(){
          println("${this}==========LoadNews============${Thread.currentThread().name}")
@@ -57,6 +60,9 @@
 
 @AutoPreload(target = "com.jack.autopreload.SettingsFragment",process = ":p2")
 class LoadFragment {
+
+    @TargetInject
+    public var fragment : Fragment? = null
 
     @LoadMethod(threadMode = ThreadMode.BACKGROUND)
     fun loadFragmentPre(){
