@@ -193,11 +193,15 @@ class PreloadProcessor : AbstractProcessor(){
                             } else {
                                 "()"
                             }
-                            loadTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = content as ${targetInjectElements[0].asType()}",cls)
+                            if(targetInjectElements.isNotEmpty()){
+                                loadTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = content as ${targetInjectElements[0].asType()}",cls)
+                            }
                             loadTempCode.addStatement("%T${suffix}.${needsElements[0]}",cls)
                             loadTempCode.endControlFlow()
                             loadTempCode.nextControlFlow("else")
-                            loadTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = content as ${targetInjectElements[0].asType()}",cls)
+                            if(targetInjectElements.isNotEmpty()){
+                                loadTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = content as ${targetInjectElements[0].asType()}",cls)
+                            }
                             loadTempCode.addStatement("%T${suffix}.${needsElements[0]}",cls)
                             loadTempCode.endControlFlow()
                             loadTempCode.endControlFlow()
