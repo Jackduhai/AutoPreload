@@ -37,44 +37,44 @@
 #以上是在Application初始化时需要直接启动的配置方式，下面介绍一下绑定生命周期的配置方式
  框架支持Activity和fragment生命周期感知能力，配置好target后可以自动进行资源的管理完全与fragment和activity进行分离，如不配置则默认在application初始化时进行调用
  demo如下
-  //target是需要绑定的fragment或activity全路径
-  @AutoPreload(process = ":p2",target = "com.jack.autopreload.MainActivity")
-  object LoadNews {
+ 
+      @AutoPreload(process = ":p2",target = "com.jack.autopreload.MainActivity")//target是需要绑定的fragment或activity全路径
+      object LoadNews {
 
-    @TargetInject                       //自动注入 此注解会自动注入target对应的组件对象，会自动进行维护不需要手动维护，当生命周期结束时会自动null
-    public var context: AppCompatActivity? = null
+        @TargetInject                       //自动注入 此注解会自动注入target对应的组件对象，会自动进行维护不需要手动维护，当生命周期结束时会自动null
+        public var context: AppCompatActivity? = null
 
-     @LoadMethod(threadMode = ThreadMode.MAIN)  //生命周期开始时会自动调用loadMethod注解的方法 同样可以对线程类型进行声明
-     fun loadMyMessagePre(){
-         println("${this}==========LoadNews============${Thread.currentThread().name}")
+         @LoadMethod(threadMode = ThreadMode.MAIN)  //生命周期开始时会自动调用loadMethod注解的方法 同样可以对线程类型进行声明
+         fun loadMyMessagePre(){
+             println("${this}==========LoadNews============${Thread.currentThread().name}")
+         }
+
+         @CleanMethod(threadMode = ThreadMode.MAIN) //当生命周期结束时会自动调用cleanMethod注解的方法并且按照threadMode执行，可以将需要释放的资源放在此方法中进行维护
+         fun cleanTwo(){
+             println("${this}========cleanTwo=========${Thread.currentThread().name}")
+         }
+
      }
-
-     @CleanMethod(threadMode = ThreadMode.MAIN) //当生命周期结束时会自动调用cleanMethod注解的方法并且按照threadMode执行，可以将需要释放的资源放在此方法中进行维护
-     fun cleanTwo(){
-         println("${this}========cleanTwo=========${Thread.currentThread().name}")
-     }
-
- }
 
  非单例的demo如下
 
- @AutoPreload(target = "com.jack.autopreload.SettingsFragment",process = ":p2")
- class LoadFragment {
+     @AutoPreload(target = "com.jack.autopreload.SettingsFragment",process = ":p2")
+     class LoadFragment {
 
-    @TargetInject
-    public var fragment : Fragment? = null
+        @TargetInject
+        public var fragment : Fragment? = null
 
-    @LoadMethod(threadMode = ThreadMode.BACKGROUND)
-    fun loadFragmentPre(){
-        println("${this}==========LoadFragment============${Thread.currentThread().name}")
+        @LoadMethod(threadMode = ThreadMode.BACKGROUND)
+        fun loadFragmentPre(){
+            println("${this}==========LoadFragment============${Thread.currentThread().name}")
+        }
+
+        @CleanMethod(threadMode = ThreadMode.MAIN)
+        fun cleanFragment(){
+            println("${this}========cleanLoadFragment=========${Thread.currentThread().name}")
+        }
+
     }
-
-    @CleanMethod(threadMode = ThreadMode.MAIN)
-    fun cleanFragment(){
-        println("${this}========cleanLoadFragment=========${Thread.currentThread().name}")
-    }
-
-}
 
 # MemoryCache配套使用 可以进行预加载缓存 effectTime put时可设置生效时间 默认5分钟 如需永久有效则设置成-1
     MemoryCache.put("","")
