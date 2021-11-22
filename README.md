@@ -38,8 +38,8 @@
  框架支持Activity和fragment生命周期感知能力，配置好target后可以自动进行资源的管理完全与fragment和activity进行分离，如不配置则默认在application初始化时进行调用
  demo如下
 
- @AutoPreload(process = ":p2",target = "com.jack.autopreload.MainActivity")//target是需要绑定的fragment或activity全路径
- object LoadNews {
+  @AutoPreload(process = ":p2",target = "com.jack.autopreload.MainActivity")//target是需要绑定的fragment或activity全路径
+  object LoadNews {
 
     @TargetInject                       //自动注入 此注解会自动注入target对应的组件对象，会自动进行维护不需要手动维护，当生命周期结束时会自动null
     public var context: AppCompatActivity? = null
@@ -58,8 +58,8 @@
 
  非单例的demo如下
 
-@AutoPreload(target = "com.jack.autopreload.SettingsFragment",process = ":p2")
-class LoadFragment {
+ @AutoPreload(target = "com.jack.autopreload.SettingsFragment",process = ":p2")
+ class LoadFragment {
 
     @TargetInject
     public var fragment : Fragment? = null
