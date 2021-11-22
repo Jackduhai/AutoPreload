@@ -238,7 +238,7 @@ class PreloadProcessor : AbstractProcessor(){
                     register.addStatement(" mapFunctionClean[\"${cls.reflectionName()}\"] = \"${cleanElements[0].simpleName}\"")
                 }
                 if(targetInjectElements.isNotEmpty()){
-                    register.addStatement(" mapTargetInject[\"${cls.reflectionName()}\"] = \"${targetInjectElements[0]}|${targetInjectElements[0].asType()}\"")
+                    register.addStatement(" mapTargetInject[\"${cls.reflectionName()}\"] = \"${targetInjectElements[0]}\"")//|${targetInjectElements[0].asType()
                 }
             }
         }catch (e : Exception){
@@ -289,15 +289,19 @@ class PreloadProcessor : AbstractProcessor(){
                 "            val obj = cls?.getConstructor()?.newInstance()!!\n" +
                 "            val load = cls?.getDeclaredMethod(mapFunctionLoad[targetPath])\n" +
                 "            load?.isAccessible = true\n" +
+                "            val context = cls?.getDeclaredField(mapTargetInject[targetPath])\n" +
+                "            context?.isAccessible = true\n" +
                 "            val threadInfo = mapThreadInfo[\"\${targetPath}.\${mapFunctionLoad[targetPath]}\"]\n" +
                 "            if (threadInfo == \"BACKGROUND\") {\n" +
                 "                GlobalScope.launch(Dispatchers.IO)\n" +
                 "                {\n" +
+                "                    context.set(obj,content)\n"+
                 "                    load?.invoke(obj)\n" +
                 "                }\n" +
                 "            } else {\n" +
                 "                GlobalScope.launch(Dispatchers.Main)\n" +
                 "                {\n" +
+                "                    context.set(obj,content)\n"+
                 "                    load?.invoke(obj)\n" +
                 "                }\n" +
                 "            }\n" +
@@ -335,16 +339,20 @@ class PreloadProcessor : AbstractProcessor(){
                 "            val cleanMethod = (cls as?\n" +
                 "                    Class<*>)?.getDeclaredMethod(mapFunctionClean[targetPath])\n" +
                 "            cleanMethod?.isAccessible = true\n" +
+                "            val feid = (cls as? Class<*>)?.getDeclaredField(mapTargetInject[targetPath])\n" +
+                "            feid?.isAccessible = true\n" +
                 "            val threadInfo =\n" +
                 "                mapThreadInfo[\"\${targetPath}.\${mapFunctionClean[targetPath]}\"]\n" +
                 "            if (threadInfo == \"BACKGROUND\") {\n" +
                 "                GlobalScope.launch(Dispatchers.IO)\n" +
                 "                {\n" +
+                "                    feid?.set(obj,null)\n"+
                 "                    cleanMethod?.invoke(obj)\n" +
                 "                }\n" +
                 "            } else {\n" +
                 "                GlobalScope.launch(Dispatchers.Main)\n" +
                 "                {\n" +
+                "                    feid?.set(obj,null)\n"+
                 "                    cleanMethod?.invoke(obj)\n" +
                 "                }\n" +
                 "            }\n" +
