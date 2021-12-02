@@ -230,7 +230,9 @@ class PreloadProcessor : AbstractProcessor(){
                     }
                     register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}\"] = \"${pName}\"")
                     register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}.${needsElements[0].simpleName}\"] = \"${methodAnnotation?.threadMode}\"")
-                    register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}.${cleanElements[0].simpleName}\"] = \"${cleanAnnotation?.threadMode}\"")
+                    if(cleanElements.isNotEmpty()){
+                        register.addStatement(" mapThreadInfo[\"${cls.reflectionName()}.${cleanElements[0].simpleName}\"] = \"${cleanAnnotation?.threadMode}\"")
+                    }
                 }
 
                 //register 目标不是application且不是单例时启动时则注册到map中

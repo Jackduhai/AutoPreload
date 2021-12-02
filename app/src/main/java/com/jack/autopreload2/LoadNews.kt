@@ -15,11 +15,12 @@ object LoadNews {
     @LoadMethod
     fun loadMyMessagePre(){
         println("${this}==========LoadNews============${Thread.currentThread().name}  context:${context}")
+        context?.intent?.putExtra("aop","from LoadNews")
     }
 
-    @CleanMethod(threadMode = ThreadMode.MAIN)
-    fun cleanTwo(){
-        println("${this}========cleanTwo=========${Thread.currentThread().name}  context:${context}")
-    }
+//    @CleanMethod(threadMode = ThreadMode.MAIN)
+//    fun cleanTwo(){
+//        println("${this}========cleanTwo=========${Thread.currentThread().name}  context:${context}")
+//    }
 
 }
