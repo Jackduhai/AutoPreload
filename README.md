@@ -4,8 +4,8 @@
         maven { url 'https://jitpack.io' }
     }
 
-    kapt "com.github.Jackduhai.AutoPreload:processor:1.0.1.16"
-    implementation 'com.github.Jackduhai.AutoPreload:autopreload:1.0.1.16'
+    kapt "com.github.Jackduhai.AutoPreload:processor:1.0.1.17"
+    implementation 'com.github.Jackduhai.AutoPreload:autopreload:1.0.1.17'
 
     //需要导入kotlin协程包
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2'
