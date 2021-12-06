@@ -84,6 +84,11 @@ class PreloadProcessor : AbstractProcessor(){
             ,KModifier.PRIVATE)
             .initializer("LinkedHashMap<String,String>()").build())
 
+        typeSpec.addProperty(PropertySpec.builder("mapApplicationInject",LinkedHashMap::class.asClassName()
+            .parameterizedBy(String::class.asClassName(),String::class.asClassName())
+            ,KModifier.PRIVATE)
+            .initializer("LinkedHashMap<String,String>()").build())
+
         val f = FunSpec.builder("load").addParameter("applicationContext",context)
         f.addStatement("register()")
         f.addStatement("val mainProcess = applicationContext.packageName")
@@ -119,6 +124,7 @@ class PreloadProcessor : AbstractProcessor(){
                 val needsElements = annotatedElement.childElementsAnnotatedWith(LoadMethod::class.java)
                 val cleanElements = annotatedElement.childElementsAnnotatedWith(CleanMethod::class.java)
                 val targetInjectElements = annotatedElement.childElementsAnnotatedWith(TargetInject::class.java)
+                val applicationInjectElements = annotatedElement.childElementsAnnotatedWith(ApplicationInject::class.java)
                 val processName = annotatedElement.getAnnotation(AutoPreload::class.java)
                 println("00=====${processName.process}=====${annotatedElement.simpleName}  " +
                         "${annotatedElement.enclosedElements}")
@@ -166,18 +172,23 @@ class PreloadProcessor : AbstractProcessor(){
                         f.beginControlFlow("if(%T.${methodAnnotation.threadMode} == %T.MAIN)",threadModel,threadModel)
                         f.addStatement("%T.%T(%T.Main)",globalScope,launch,dispatcher)
                         f.beginControlFlow("")
-                        if(containssington){
-                            f.addStatement("%T.${needsElements[0]}",cls)
+                        val suffix = if(containssington){
+                            ""
                         } else {
-                            f.addStatement("%T().${needsElements[0]}",cls)
+                            "()"
                         }
+                        f.addStatement("val obj = %T${suffix}",cls)
+                        if(applicationInjectElements.isNotEmpty()){
+                            f.addStatement("obj.${applicationInjectElements[0]} = applicationContext as ${applicationInjectElements[0].asType()}")
+                        }
+                        f.addStatement("obj.${needsElements[0]}",cls)
                         f.endControlFlow()
                         f.nextControlFlow("else")
-                        if(containssington){
-                            f.addStatement("%T.${needsElements[0]}",cls)
-                        } else {
-                            f.addStatement("%T().${needsElements[0]}",cls)
+                        f.addStatement("val obj = %T${suffix}",cls)
+                        if(applicationInjectElements.isNotEmpty()){
+                            f.addStatement("obj.${applicationInjectElements[0]} = applicationContext as ${applicationInjectElements[0].asType()}")
                         }
+                        f.addStatement("obj.${needsElements[0]}",cls)
                         f.endControlFlow()
                         f.endControlFlow()
                     } else {
@@ -196,11 +207,17 @@ class PreloadProcessor : AbstractProcessor(){
                             if(targetInjectElements.isNotEmpty()){
                                 loadTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = content as ${targetInjectElements[0].asType()}",cls)
                             }
+                            if(applicationInjectElements.isNotEmpty()){
+                                loadTempCode.addStatement("%T${suffix}.${applicationInjectElements[0]} = content as ${applicationInjectElements[0].asType()}",cls)
+                            }
                             loadTempCode.addStatement("%T${suffix}.${needsElements[0]}",cls)
                             loadTempCode.endControlFlow()
                             loadTempCode.nextControlFlow("else")
                             if(targetInjectElements.isNotEmpty()){
                                 loadTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = content as ${targetInjectElements[0].asType()}",cls)
+                            }
+                            if(applicationInjectElements.isNotEmpty()){
+                                loadTempCode.addStatement("%T${suffix}.${applicationInjectElements[0]} = content as ${applicationInjectElements[0].asType()}",cls)
                             }
                             loadTempCode.addStatement("%T${suffix}.${needsElements[0]}",cls)
                             loadTempCode.endControlFlow()
@@ -216,11 +233,17 @@ class PreloadProcessor : AbstractProcessor(){
                                 if(targetInjectElements.isNotEmpty()){
                                     cleanTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = null",cls)
                                 }
+                                if(applicationInjectElements.isNotEmpty()){
+                                    cleanTempCode.addStatement("%T${suffix}.${applicationInjectElements[0]} = null",cls)
+                                }
                                 cleanTempCode.addStatement("%T${suffix}.${cleanElements[0]}",cls)
                                 cleanTempCode.endControlFlow()
                                 cleanTempCode.nextControlFlow("else")
                                 if(targetInjectElements.isNotEmpty()){
                                     cleanTempCode.addStatement("%T${suffix}.${targetInjectElements[0]} = null",cls)
+                                }
+                                if(applicationInjectElements.isNotEmpty()){
+                                    cleanTempCode.addStatement("%T${suffix}.${applicationInjectElements[0]} = null",cls)
                                 }
                                 cleanTempCode.addStatement("%T${suffix}.${cleanElements[0]}",cls)
                                 cleanTempCode.endControlFlow()
@@ -245,6 +268,9 @@ class PreloadProcessor : AbstractProcessor(){
                 }
                 if(targetInjectElements.isNotEmpty()){
                     register.addStatement(" mapTargetInject[\"${cls.reflectionName()}\"] = \"${targetInjectElements[0]}\"")//|${targetInjectElements[0].asType()
+                }
+                if(applicationInjectElements.isNotEmpty()){
+                    register.addStatement(" mapApplicationInject[\"${cls.reflectionName()}\"] = \"${applicationInjectElements[0]}\"")//|${targetInjectElements[0].asType()
                 }
             }
         }catch (e : Exception){

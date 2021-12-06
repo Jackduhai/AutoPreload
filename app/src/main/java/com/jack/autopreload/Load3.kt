@@ -1,16 +1,17 @@
 package com.jack.autopreload
 
-import com.jack.annotation.AutoPreload
-import com.jack.annotation.CleanMethod
-import com.jack.annotation.LoadMethod
-import com.jack.annotation.ThreadMode
+import android.app.Application
+import com.jack.annotation.*
 
 @AutoPreload(process = "main")
-class Load3 {
+object Load3 {
+
+    @ApplicationInject
+    public var application : Application?=null
 
     @LoadMethod(threadMode = ThreadMode.MAIN)
     fun Load(){
-        println("==========load3========${Thread.currentThread().name}")
+        println("${application}==========load3========${Thread.currentThread().name}")
     }
 
     @CleanMethod

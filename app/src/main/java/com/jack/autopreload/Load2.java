@@ -7,6 +7,7 @@ import com.jack.annotation.ThreadMode;
 
 @AutoPreload
 public class Load2 {
+
     @LoadMethod(threadMode = ThreadMode.MAIN)
     public void loadMyMessagePre2(){
         System.out.println(this+"==========loadMyMessagePre2============"+Thread.currentThread().getName());
