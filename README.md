@@ -4,8 +4,8 @@
         maven { url 'https://jitpack.io' }
     }
 
-    kapt "com.github.Jackduhai.AutoPreload:processor:1.0.1.17"
-    implementation 'com.github.Jackduhai.AutoPreload:autopreload:1.0.1.17'
+    kapt "com.github.Jackduhai.AutoPreload:processor:1.0.1.18"
+    implementation 'com.github.Jackduhai.AutoPreload:autopreload:1.0.1.18'
 
     //需要导入kotlin协程包
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2'
@@ -28,6 +28,11 @@
 # 单例对象预加载
     @AutoPreload //不配置进程名则默认在主进程中初始化
     object LoadNews {
+
+        @ApplicationInject   //在没有声明绑定的生命周期情况下注解ApplicationInject可以自动注入application对象包括自定义的application，假如已经声明
+                              //target则此配置不生效，因为可以直接从TargetInject注入的对象获取application
+        public var app : Application? = null
+
         @LoadMethod(threadMode = ThreadMode.BACKGROUND)
         fun loadMyMessagePre(){
             println("==========loadMyMessagePre============")
